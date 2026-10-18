@@ -1,0 +1,139 @@
+/* ========== Shorts ========== */
+
+/* 側邊欄（展開版與縮小版）的 Shorts 按鈕 */
+ytd-guide-entry-renderer:has(a[title="Shorts"]),
+ytd-guide-entry-renderer:has(a[href^="/shorts"]),
+ytd-mini-guide-entry-renderer[aria-label="Shorts"],
+ytd-mini-guide-entry-renderer:has(a[href^="/shorts"]),
+
+/* 首頁、訂閱內容、搜尋、播放頁下方的 Shorts 區塊 */
+ytd-rich-shelf-renderer[is-shorts],
+ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts]),
+ytd-reel-shelf-renderer,
+grid-shelf-view-model,
+ytd-rich-section-renderer:has(grid-shelf-view-model),
+
+/* 混在一般清單裡的單支 Shorts */
+ytd-rich-item-renderer:has(a[href^="/shorts/"]),
+ytd-video-renderer:has(a[href^="/shorts/"]),
+ytd-grid-video-renderer:has(a[href^="/shorts/"]),
+ytd-compact-video-renderer:has(a[href^="/shorts/"]),
+ytm-shorts-lockup-view-model,
+ytm-shorts-lockup-view-model-v2,
+
+/* 頻道頁的 Shorts 分頁 */
+yt-tab-shape[tab-title="Shorts"] {
+  display: none !important;
+}
+
+/* ========== 首頁：整頁推薦清空，只留上方搜尋列 ========== */
+/* 把提示文字掛在首頁元件本身：YouTube 切換頁面時會一起顯示或隱藏它，
+   不會在播放頁還沒消失前就先冒出來 */
+ytd-browse[page-subtype="home"] > * {
+  display: none !important;
+}
+ytd-browse[page-subtype="home"]:not([hidden])::before {
+  content: "";
+  display: block;
+  width: min(344px, 80vw);
+  aspect-ratio: 344 / 581;
+  max-height: calc(100vh - 56px - 140px);
+  margin: 40px auto 0;
+  background: url("chrome-extension://__MSG_@@extension_id__/images/nope.jpg") center / contain no-repeat;
+}
+ytd-browse[page-subtype="home"]:not([hidden])::after {
+  content: "首頁推薦已關閉。請使用上方搜尋列，或從側邊欄進入「訂閱內容」。";
+  display: block;
+  padding: 20px 24px 40px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--yt-spec-text-secondary, #606060);
+}
+
+/* ========== 播放頁：只留影片、說明與留言 ========== */
+
+/* 右側（或視窗窄時影片下方）的推薦影片；播放清單面板與直播聊天室保留 */
+ytd-watch-flexy #related,
+ytd-watch-next-secondary-results-renderer {
+  display: none !important;
+}
+
+/* 版面：推薦欄拿掉後，讓影片與留言填滿空間
+   只在兩欄版面套用；播放清單與直播（右側有清單或聊天室）時維持原樣 */
+html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([fullscreen]):not([live-chat-present]) #secondary {
+  display: none !important;
+}
+/* 左右留白統一放在外框上，兩側永遠等寬 */
+html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([fullscreen]):not([live-chat-present]) #columns {
+  max-width: none !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  padding-left: var(--ytd-margin-6x, 24px) !important;
+  padding-right: var(--ytd-margin-6x, 24px) !important;
+}
+/* 去掉 YouTube 原本「左邊 margin、右邊 padding」的不對稱留白 */
+html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([fullscreen]):not([live-chat-present]) #primary {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+/* 一般模式：影片盡量放大，但限制高度，整支影片都能留在畫面內不用捲動 */
+html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([theater]):not([fullscreen]):not([live-chat-present]) #primary {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: min(100%, calc((100vh - 56px - 48px) * 16 / 9)) !important;
+}
+html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([theater]):not([fullscreen]):not([live-chat-present]) #player-container-outer {
+  max-width: none !important;
+  min-width: 0 !important;
+}
+/* 劇院模式：影片本來就滿版，讓下方的說明與留言也延伸到原本推薦欄的位置 */
+html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_][theater]:not([fullscreen]):not([live-chat-present]) #primary {
+  max-width: none !important;
+}
+
+/* 播放器內：片尾推薦牆、片尾卡片、自動播放倒數、全螢幕往下滑的推薦格 */
+.ytp-endscreen-content,
+.videowall-endscreen,
+.ytp-ce-element,
+.ytp-autonav-endscreen-countdown-overlay,
+.ytp-autonav-endscreen-upnext-container,
+.ytp-fullscreen-grid,
+.ytp-suggested-action,
+
+/* 自動播放開關（content.js 會先把它關掉再隱藏） */
+.ytp-autonav-toggle-button-container,
+.ytp-button:has(.ytp-autonav-toggle-button) {
+  display: none !important;
+}
+
+/* 「下一部」按鈕：不在播放清單裡時，它會跳到推薦影片 */
+html:not(.ytc-playlist) .ytp-next-button {
+  display: none !important;
+}
+
+/* ========== 搜尋結果：移除與搜尋無關的推薦區塊 ========== */
+/* 「其他人也看了」「為你推薦」「先前看過」「相關搜尋」等 */
+ytd-search ytd-shelf-renderer,
+ytd-search ytd-horizontal-card-list-renderer {
+  display: none !important;
+}
+
+/* ========== 側邊欄：探索區（音樂、電影、直播、遊戲、新聞、體育、Podcast…） ========== */
+/* 主要由 content.js 加上 .ytc-hidden；下面的 :has() 規則當作備援 */
+.ytc-hidden {
+  display: none !important;
+}
+ytd-guide-section-renderer:has(a[href="/feed/trending"]),
+ytd-guide-section-renderer:has(a[href="/feed/explore"]),
+ytd-guide-section-renderer:has(a[href^="/gaming"]),
+ytd-guide-section-renderer:has(a[href="/feed/storefront"]),
+ytd-guide-section-renderer:has(a[href="/podcasts"]),
+ytd-guide-entry-renderer:has(a[href="/feed/trending"]),
+ytd-guide-entry-renderer:has(a[href="/feed/explore"]),
+ytd-mini-guide-entry-renderer:has(a[href="/feed/trending"]),
+ytd-mini-guide-entry-renderer:has(a[href="/feed/explore"]) {
+  display: none !important;
+}
