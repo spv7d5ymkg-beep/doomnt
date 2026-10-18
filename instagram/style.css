@@ -1,0 +1,93 @@
+/* Reels 按鈕與個人頁 Reels 分頁 */
+a[href="/reels/"],
+a[href$="/reels/"][role="tab"],
+div:has(> a[href="/reels/"]),
+li:has(> a[href="/reels/"]),
+span:has(> a[href="/reels/"]) {
+  display: none !important;
+}
+
+/* 動態裡的影片：游標不再顯示成可點擊（點擊由 content.js 攔下） */
+a[href^="/reels/"] {
+  cursor: default !important;
+}
+
+/* 探索頁：只留搜尋列 */
+html.igc-explore main[role="main"] > div > div:nth-child(n + 2) {
+  display: none !important;
+}
+
+/* 首頁動態：廣告與建議貼文；
+   .igc-linger：剛離開的頁面還沒被換掉的舊內容（見 content.js） */
+.igc-hidden,
+.igc-linger {
+  display: none !important;
+}
+
+/* 首頁「限時動態」模式：整個貼文區塊不顯示
+   （第二條規則是保險：貼文區塊還沒被標記前，貼文也不會先閃一下） */
+html.igc-stories-only .igc-home-posts,
+html.igc-stories-only main article {
+  display: none !important;
+}
+
+/* 限時動態下方的圖片（只在「限時動態」模式顯示） */
+#igc-meme {
+  display: none;
+}
+html.igc-stories-only #igc-meme {
+  display: flex;
+  justify-content: center;
+  padding: 32px 16px;
+}
+/* 直式圖片：不放大超過原尺寸，也不要高過視窗 */
+#igc-meme img {
+  width: auto;
+  max-width: min(344px, 100%);
+  max-height: calc(100vh - 240px);
+  height: auto;
+  border-radius: 8px;
+  user-select: none;
+}
+
+/* 限時動態 / 貼文 切換按鈕 */
+/* 放在首頁內容裡、限時動態列上方置中（由 content.js 插入），不會蓋住側欄面板 */
+#igc-toggle {
+  display: flex;
+  width: fit-content;
+  margin: 12px auto 8px;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #efefef;
+  font: 600 14px/1.2 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
+}
+#igc-toggle a {
+  padding: 7px 14px;
+  border-radius: 999px;
+  color: #737373;
+  text-decoration: none;
+}
+#igc-toggle a:hover {
+  color: #000;
+}
+#igc-toggle a.igc-active {
+  background: #fff;
+  color: #000;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+@media (prefers-color-scheme: dark) {
+  #igc-toggle {
+    background: #262626;
+  }
+  #igc-toggle a {
+    color: #a8a8a8;
+  }
+  #igc-toggle a:hover {
+    color: #f5f5f5;
+  }
+  #igc-toggle a.igc-active {
+    background: #464646;
+    color: #f5f5f5;
+  }
+}
