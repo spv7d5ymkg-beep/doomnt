@@ -54,6 +54,68 @@
     }
   }
 
+  // ---------- 首頁「貼文」模式：每頁最多 10 篇 ----------
+  // Instagram 會把捲過去的貼文從頁面上移除（只留空白佔位），所以不能數頁面上有幾個 <article>，
+  // 而是依照「第一次出現的順序」記下每篇貼文的 ID，第 11 篇起一律隱藏。
+  // 看滿 10 篇後，清單後面「載入更多」的轉圈圖示也藏起來：它看不到，Instagram 就不會再往下載入。
+  // 廣告、建議貼文已被 filterFeed 藏起來，不算在 10 篇裡。重新整理或重新進入這一頁才重新計算。
+  const POST_LIMIT = 10;
+  let limitPage = null; // 正在計算的頁面網址
+  let limitOrder = []; // 依第一次出現順序排列的貼文 ID
+
+  function postId(article) {
+    const a = article.querySelector('a[href*="/p/"], a[href*="/reel/"]');
+    const m = a && a.getAttribute("href").match(/\/(?:p|reel)\/([^/?#]+)/);
+    return m ? m[1] : null;
+  }
+
+  function overLimit(el) {
+    el.classList.add("igc-over-limit");
+  }
+
+  function limitFeed() {
+    if (limitPage !== location.href) {
+      limitPage = location.href;
+      limitOrder = [];
+    }
+    const articles = [...document.querySelectorAll("main article")].filter(
+      (a) => !a.classList.contains("igc-hidden")
+    );
+    for (const a of articles) {
+      const id = postId(a);
+      if (!id) {
+        // 還沒載入完、看不出是哪一篇：已經滿 10 篇的話先藏起來
+        if (limitOrder.length >= POST_LIMIT) overLimit(a);
+        continue;
+      }
+      let rank = limitOrder.indexOf(id);
+      if (rank === -1) {
+        rank = limitOrder.length;
+        limitOrder.push(id);
+      }
+      if (rank >= POST_LIMIT) overLimit(a);
+    }
+    if (limitOrder.length < POST_LIMIT || !articles.length) return;
+
+    // 已經滿 10 篇：在貼文清單後面放結尾訊息，並藏起後面的「載入更多」
+    const list = articles[0].parentElement;
+    const listWrap = list && list.parentElement;
+    if (!listWrap || listWrap.tagName === "MAIN") return;
+    // 清單用 padding-bottom 替「下面還沒顯示的貼文」預留空間；那些貼文已被藏起來，
+    // 預留的空白也要拿掉，否則第 10 篇下面會有一大段空白、結尾訊息被推到最底
+    list.classList.add("igc-limit-list");
+    let card = document.getElementById("igc-limit");
+    if (!card) {
+      card = document.createElement("div");
+      card.id = "igc-limit";
+      card.innerHTML =
+        "<strong>已看完 " + POST_LIMIT + " 篇貼文</strong>" +
+        "<span>今天就滑到這裡吧！</span>";
+    }
+    if (listWrap.nextElementSibling !== card) listWrap.after(card);
+    for (let s = card.nextElementSibling; s; s = s.nextElementSibling) overLimit(s);
+  }
+
   // ---------- 首頁「貼文」模式：隱藏上方的「← 追蹤中」標題 ----------
   // 我們的切換按鈕已經能切換模式，Instagram 自己的標題（返回首頁的連結）就不需要了。
   // 只在 <main> 裡找：頁面剛載入時 Instagram 會先把內容放在隱藏的暫存區塊，不要動到那裡，
@@ -325,6 +387,7 @@
     if (storiesOnly) markHomePosts();
     else if (p === "/") {
       filterFeed();
+      limitFeed();
       header = hideFollowingHeader();
     }
     updateToggle(p, storiesOnly, header);
