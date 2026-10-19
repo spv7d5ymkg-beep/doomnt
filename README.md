@@ -1,24 +1,45 @@
 # Doomn't
 
-A Chrome extension that stops doomscrolling on YouTube and Instagram. It hides short videos and algorithmic feeds, and leaves only what you choose to watch.
+讓你不再在 YouTube 和 Instagram 上無限滑的 Chrome 擴充功能。它會藏起短影音和演算法推薦的動態，只留下你自己選擇要看的內容。
 
 ## YouTube
 
-- Hides Shorts everywhere (sidebar, home, search, subscriptions, channel tabs); `/shorts/` links open as normal videos
-- Clears the home page recommendations, leaving the search bar and your subscriptions
-- Removes recommended videos from the watch page, end screens and autoplay
-- Removes unrelated recommendation shelves from search results and the Explore section from the sidebar
+- 到處都看不到 Shorts（側邊欄、首頁、搜尋結果、訂閱內容、頻道分頁）；點到 `/shorts/` 的連結會改用一般播放頁開啟
+- 首頁推薦全部清空，只留下搜尋列和你的訂閱內容
+- 移除播放頁旁邊的推薦影片、片尾推薦和自動播放
+- 移除搜尋結果裡和搜尋無關的推薦區塊，以及側邊欄的「探索」區
 
 ## Instagram
 
-- Home shows only your stories by default; a 限時動態 / 貼文 switch above the stories shows posts from people you follow
-- The posts feed is split into pages of 10 posts with ← 上一頁 / 下一頁 → buttons instead of endless scrolling; Instagram only loads the next batch when you go to the next page
-- Hides Reels; single reels open as a normal post page you can't swipe through
-- Clears the Explore grid, leaving only search
-- Removes ads, suggested posts and the "more posts from" wall on post pages
+- 首頁預設只顯示限時動態；限時動態上方的「限時動態／貼文」按鈕可以切換成只看追蹤對象的貼文
+- 貼文動態改成分頁，每頁 10 篇，用「← 上一頁／下一頁 →」翻頁，不再無限往下滑；按下一頁時才會載入下一批
+- 藏起 Reels；單支 Reels 會改用一般貼文頁開啟，不能一直往下滑
+- 探索頁的貼文牆清空，只留下搜尋
+- 移除廣告、建議貼文，以及貼文頁下方「更多某某的貼文」
 
-## Install
+## 安裝方式
 
-1. Download or clone this repository.
-2. Open `chrome://extensions` and turn on **Developer mode**.
-3. Click **Load unpacked** and choose this folder.
+不需要任何程式知識，大約 2 分鐘就能完成。
+
+1. **下載**：在這個頁面上方按綠色的 **Code** 按鈕，再按 **Download ZIP**。
+2. **解壓縮**：打開下載的 ZIP 檔，會得到一個資料夾（例如 `doomnt-main`）。把它放在不會被刪掉的地方，例如「文件」資料夾。安裝後這個資料夾不能刪除或搬走。
+3. **打開擴充功能頁面**：在 Chrome 的網址列輸入 `chrome://extensions`，按 Enter。
+4. **開啟開發人員模式**：打開頁面右上角的「**開發人員模式**」開關。
+5. **載入擴充功能**：按左上角的「**載入未封裝項目**」，選擇第 2 步解壓縮出來的資料夾（裡面有 `manifest.json` 的那一層），按「選取」。
+6. **完成**：清單裡出現 Doomn't 就安裝好了。打開或重新整理 YouTube、Instagram 就會生效。
+
+小提醒：
+
+- 想讓圖示一直顯示在工具列上，可以按網址列右邊的拼圖圖示，再按 Doomn't 旁邊的圖釘。
+- Chrome 有時會跳出「停用開發人員模式擴充功能」的提醒，按「保留」或直接關掉就好。
+- Edge、Brave 等以 Chrome 為基礎的瀏覽器也能用同樣的步驟安裝（Edge 的網址是 `edge://extensions`）。
+
+## 更新到新版本
+
+1. 照「安裝方式」的第 1、2 步下載新版本，用新的檔案取代原本的資料夾內容。
+2. 打開 `chrome://extensions`，在 Doomn't 上按重新載入（↻）。
+3. 重新整理 YouTube、Instagram 的分頁。
+
+## 移除
+
+打開 `chrome://extensions`，在 Doomn't 上按「移除」，之後就可以刪掉資料夾。
