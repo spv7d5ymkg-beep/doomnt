@@ -128,20 +128,79 @@
     return pager;
   }
 
-  // 捲動限制。每次捲動都用當下的位置計算（Instagram 會隨時調整預留空白，位置會變）。
+  // 捲動範圍：往上最多到本頁第一篇（第 1 頁不限制），往下最多到分頁按鈕完整出現。
+  // 每次都用當下的位置計算（Instagram 會隨時調整預留空白，位置會變）。
+  function scrollRange() {
+    let min = null;
+    let max = null;
+    if (feedPage > 0 && pageFirst && pageFirst.isConnected && !pageFirst.closest(".igc-other-page")) {
+      min = pageTop(pageFirst);
+    }
+    const pager = placePager();
+    if (pager && !pager.hidden) {
+      max = Math.max(0, Math.round(pager.getBoundingClientRect().bottom + window.scrollY + 48 - window.innerHeight));
+    }
+    return { min, max };
+  }
+
+  // 捲到頂或底就直接停住：在捲動發生之前判斷，這一下會超過範圍就取消，只捲到邊界為止。
+  // （如果先讓瀏覽器捲過頭再拉回來，就會感覺被推回去。）
+  function stopAtEdge(e, delta) {
+    if (jumping || delta === 0) return;
+    const { min, max } = scrollRange();
+    const y = window.scrollY;
+    if (delta > 0 && max !== null && y + delta > max) {
+      e.preventDefault();
+      if (y < max) window.scrollTo({ top: max, behavior: "instant" });
+    } else if (delta < 0 && min !== null && y + delta < min) {
+      e.preventDefault();
+      if (y > min) window.scrollTo({ top: min, behavior: "instant" });
+    }
+  }
+
+  // 滑鼠滾輪、觸控板
+  window.addEventListener(
+    "wheel",
+    (e) => {
+      if (e.ctrlKey) return; // 縮放手勢
+      // 留言等對話框裡可以自己捲動，不要擋
+      if (e.target.closest && e.target.closest("[role='dialog']")) return;
+      const unit = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? window.innerHeight : 1;
+      stopAtEdge(e, e.deltaY * unit);
+    },
+    { passive: false, capture: true }
+  );
+
+  // 鍵盤：↑↓、Page Up/Down、空白鍵、Home/End（在輸入框裡打字時不處理）
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      const t = e.target;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      if (t && t.closest && t.closest("[role='dialog']")) return;
+      const page = window.innerHeight * 0.875;
+      const delta = {
+        ArrowDown: 40,
+        ArrowUp: -40,
+        PageDown: page,
+        PageUp: -page,
+        " ": e.shiftKey ? -page : page,
+        End: Infinity,
+        Home: -Infinity,
+      }[e.key];
+      if (delta !== undefined) stopAtEdge(e, delta);
+    },
+    { capture: true }
+  );
+
+  // 保險：拖曳捲軸等無法事先攔下的捲動，超出範圍就拉回邊界
   window.addEventListener(
     "scroll",
     () => {
       if (jumping) return;
-      if (feedPage > 0 && pageFirst && pageFirst.isConnected && !pageFirst.closest(".igc-other-page")) {
-        const min = pageTop(pageFirst);
-        if (window.scrollY < min) window.scrollTo(0, min);
-      }
-      const pager = placePager();
-      if (pager && !pager.hidden) {
-        const max = Math.round(pager.getBoundingClientRect().bottom + window.scrollY + 48 - window.innerHeight);
-        if (window.scrollY > max) window.scrollTo(0, Math.max(0, max));
-      }
+      const { min, max } = scrollRange();
+      if (min !== null && window.scrollY < min) window.scrollTo({ top: min, behavior: "instant" });
+      else if (max !== null && window.scrollY > max) window.scrollTo({ top: max, behavior: "instant" });
     },
     { passive: true }
   );
