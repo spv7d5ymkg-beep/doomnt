@@ -50,27 +50,29 @@ html.igc-stories-only #igc-meme {
   user-select: none;
 }
 
-/* 「貼文」模式分頁：不在目前這一頁的貼文，以及這一頁滿了之後的「載入更多」 */
-.igc-off-page {
-  display: none !important;
-}
-/* 這一頁滿了：拿掉清單底部替後面貼文預留的空白（Instagram 寫在 inline style 裡） */
-.igc-page-full {
-  padding-bottom: 0 !important;
+/* 「貼文」模式分頁：其他頁的貼文看不見，但保留原本高度（原因見 content.js） */
+.igc-other-page {
+  visibility: hidden !important;
 }
 
 /* 分頁按鈕：← 上一頁　第 N 頁　下一頁 → */
+/* 掛在 <body> 上、絕對定位在本頁最後一篇正下方（位置、寬度由 content.js 設定） */
 #igc-pager {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16px;
-  margin: 24px auto 48px;
+  margin: 0;
   padding-top: 24px;
-  max-width: 470px;
   border-top: 1px solid rgba(128, 128, 128, 0.3);
   font: 14px/1.4 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
   color: #737373;
+}
+#igc-pager[hidden] {
+  display: none;
 }
 #igc-pager button {
   padding: 8px 16px;

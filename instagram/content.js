@@ -56,14 +56,25 @@
 
   // ---------- 首頁「貼文」模式：分頁，每頁 10 篇 ----------
   // Instagram 會把捲過去的貼文從頁面上移除（只留空白佔位），所以不能數頁面上有幾個 <article>，
-  // 而是依照「第一次出現的順序」記下每篇貼文的 ID，只顯示目前這一頁的 10 篇，其餘藏起來。
-  // 這一頁的 10 篇都載入後，藏起清單後面的「載入更多」轉圈圖示並拿掉底部預留的空白：
-  // Instagram 看不到轉圈圖示就不會再往下載入，要等按「下一頁」才會再載入下一批。
+  // 而是依照「第一次出現的順序」記下每篇貼文的 ID，只顯示目前這一頁的 10 篇。
+  //
+  // 其他頁的貼文用 visibility: hidden 藏起來：看不見，但保留原本的高度。
+  // 不能用 display: none：Instagram「只顯示畫面附近貼文」的機制仍以為它們有高度，
+  // 位置算錯，捲到底會一直把畫面往上推、翻頁後頂端一片空白。
+  // 因為其他頁的貼文還佔著位置，所以限制捲動範圍：
+  // 往上最多到本頁第一篇（第 1 頁不限制），往下最多到分頁按鈕完整出現。
+  // 捲不到後面看不見的貼文，Instagram 也就不會再往下載入。
+  // 分頁按鈕不能放進 Instagram 的貼文清單裡：它照清單裡的元素逐個對應貼文，
+  // 多一個元素就算錯要顯示哪幾篇（會一直停在同幾篇、下面留一大片空白）。
+  // 所以按鈕放在 <body> 上，用絕對定位對齊本頁最後一篇的正下方。
   // 廣告、建議貼文已被 filterFeed 藏起來，不算在內。重新整理或重新進入這一頁就回到第 1 頁。
   const PAGE_SIZE = 10;
   let feedHref = null; // 正在分頁的頁面網址
   let feedOrder = []; // 依第一次出現順序排列的貼文 ID
   let feedPage = 0; // 目前在第幾頁（從 0 開始）
+  let pageFirst = null; // 本頁第一篇（在頁面上時）
+  let pageLast = null; // 本頁最後一篇（本頁已滿、在頁面上時）：分頁按鈕對齊它的正下方
+  let jumping = false; // 翻頁捲動中：暫停捲動限制
 
   function postId(article) {
     const a = article.querySelector('a[href*="/p/"], a[href*="/reel/"]');
@@ -71,10 +82,82 @@
     return m ? m[1] : null;
   }
 
-  function goToPage(page) {
+  // 翻頁：重新分類後捲到新一頁的第一篇。那一篇可能已被 Instagram 移除（往前翻時），
+  // 就往那個方向一段一段捲，直到它重新出現。
+  async function goToPage(page) {
+    const forward = page > feedPage;
     feedPage = Math.max(0, page);
-    paginateFeed();
-    window.scrollTo({ top: 0 });
+    jumping = true;
+    try {
+      paginateFeed();
+      if (feedPage === 0) {
+        window.scrollTo(0, 0);
+        return;
+      }
+      for (let i = 0; i < 60 && !(pageFirst && pageFirst.isConnected); i++) {
+        window.scrollBy(0, forward ? window.innerHeight : -window.innerHeight);
+        await new Promise((r) => setTimeout(r, 100));
+        paginateFeed();
+      }
+      if (pageFirst && pageFirst.isConnected) {
+        window.scrollTo(0, pageTop(pageFirst));
+      }
+    } finally {
+      jumping = false;
+    }
+  }
+
+  // 本頁第一篇上方留一點空間的位置
+  function pageTop(el) {
+    return Math.max(0, Math.round(el.getBoundingClientRect().top + window.scrollY - 24));
+  }
+
+  // 把分頁按鈕對齊本頁最後一篇的正下方；那一篇不在頁面上就藏起來
+  function placePager() {
+    const pager = document.getElementById("igc-pager");
+    if (!pager) return null;
+    if (!pageLast || !pageLast.isConnected) {
+      pager.hidden = true;
+      return pager;
+    }
+    const r = pageLast.getBoundingClientRect();
+    pager.style.top = Math.round(r.bottom + window.scrollY) + "px";
+    pager.style.left = Math.round(r.left + window.scrollX) + "px";
+    pager.style.width = Math.round(r.width) + "px";
+    pager.hidden = false;
+    return pager;
+  }
+
+  // 捲動限制。每次捲動都用當下的位置計算（Instagram 會隨時調整預留空白，位置會變）。
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (jumping) return;
+      if (feedPage > 0 && pageFirst && pageFirst.isConnected && !pageFirst.closest(".igc-other-page")) {
+        const min = pageTop(pageFirst);
+        if (window.scrollY < min) window.scrollTo(0, min);
+      }
+      const pager = placePager();
+      if (pager && !pager.hidden) {
+        const max = Math.round(pager.getBoundingClientRect().bottom + window.scrollY + 48 - window.innerHeight);
+        if (window.scrollY > max) window.scrollTo(0, Math.max(0, max));
+      }
+    },
+    { passive: true }
+  );
+
+  function createPager() {
+    const pager = document.createElement("nav");
+    pager.id = "igc-pager";
+    pager.innerHTML =
+      '<button type="button" data-go="-1">← 上一頁</button>' +
+      "<span></span>" +
+      '<button type="button" data-go="1">下一頁 →</button>';
+    pager.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-go]");
+      if (btn && !btn.disabled) goToPage(feedPage + Number(btn.dataset.go));
+    });
+    return pager;
   }
 
   function paginateFeed() {
@@ -85,60 +168,67 @@
     }
     const start = feedPage * PAGE_SIZE;
     const end = start + PAGE_SIZE;
+    // 廣告、建議貼文有時要等內容載入後才認得出來、被 filterFeed 藏起來；
+    // 已經算進去的就拿掉，後面的貼文往前遞補，否則那一篇的位置會空著、分頁按鈕出不來
+    for (const a of document.querySelectorAll("main article.igc-hidden")) {
+      const i = feedOrder.indexOf(postId(a));
+      if (i !== -1) feedOrder.splice(i, 1);
+    }
     const articles = [...document.querySelectorAll("main article")].filter(
       (a) => !a.classList.contains("igc-hidden")
     );
+    let lastOnPage = null; // 本頁在頁面上的最後一篇
+    let lastRank = -1;
+    pageFirst = null;
+    pageLast = null;
     for (const a of articles) {
       const id = postId(a);
-      let onPage;
-      if (id) {
-        let rank = feedOrder.indexOf(id);
-        if (rank === -1) {
-          rank = feedOrder.length;
-          feedOrder.push(id);
-        }
-        onPage = rank >= start && rank < end;
-      } else {
-        // 還沒載入完、看不出是哪一篇：這一頁還沒滿就先顯示
-        onPage = feedOrder.length < end;
+      let rank = id ? feedOrder.indexOf(id) : -1;
+      if (id && rank === -1) {
+        rank = feedOrder.length;
+        feedOrder.push(id);
       }
-      a.classList.toggle("igc-off-page", !onPage);
+      // 還沒載入完、看不出是哪一篇：這一頁還沒滿就當成本頁，滿了就當成後面的頁
+      if (!id) rank = feedOrder.length < end ? start : end;
+      const onPage = rank >= start && rank < end;
+      a.classList.toggle("igc-other-page", !onPage);
+      a.dataset.igcRank = rank;
+      if (onPage && id && rank === start) pageFirst = a;
+      if (onPage && rank >= lastRank) {
+        lastRank = rank;
+        lastOnPage = a;
+      }
     }
-    if (!articles.length) return;
 
-    const list = articles[0].parentElement;
-    const listWrap = list && list.parentElement;
-    if (!listWrap || listWrap.tagName === "MAIN") return;
+    const pager = document.getElementById("igc-pager") || createPager();
     const pageFull = feedOrder.length >= end;
     const feedEnded = !!findText(document.body, MARKER_RE); // 「沒有其他新動態了」
-    // 清單用 padding-bottom 替「下面還沒顯示的貼文」預留空間；這一頁滿了就拿掉，頁面停在分頁按鈕
-    list.classList.toggle("igc-page-full", pageFull);
-
-    let pager = document.getElementById("igc-pager");
-    if (!pager) {
-      pager = document.createElement("nav");
-      pager.id = "igc-pager";
-      pager.innerHTML =
-        '<button type="button" data-go="-1">← 上一頁</button>' +
-        "<span></span>" +
-        '<button type="button" data-go="1">下一頁 →</button>';
-      pager.addEventListener("click", (e) => {
-        const btn = e.target.closest("button[data-go]");
-        if (btn && !btn.disabled) goToPage(feedPage + Number(btn.dataset.go));
-      });
-    }
-    if (listWrap.nextElementSibling !== pager) listWrap.after(pager);
-    // 分頁按鈕後面的「載入更多」：這一頁滿了就藏起來，還沒滿就讓它出現、繼續載入
-    for (let s = pager.nextElementSibling; s; s = s.nextElementSibling) {
-      s.classList.toggle("igc-off-page", pageFull);
+    const lastPage = feedEnded && feedOrder.length <= end;
+    // 本頁已滿（或已是最後一頁）而且最後一篇在頁面上：分頁按鈕對齊它的正下方
+    if (!pager.isConnected) document.body.appendChild(pager);
+    if (lastOnPage && (pageFull || lastPage) && lastRank === Math.min(end, feedOrder.length) - 1) {
+      pageLast = lastOnPage;
+      placePager();
+    } else {
+      pager.hidden = true;
+      // 保險：本頁已滿，但畫面上只剩後面頁（看不見）的貼文，表示已經捲過頭了：
+      // 往回捲一段，直到本頁最後一篇和分頁按鈕重新出現
+      if (pageFull && !jumping) {
+        const inView = articles.filter((a) => {
+          const r = a.getBoundingClientRect();
+          return r.bottom > 0 && r.top < window.innerHeight;
+        });
+        if (inView.length && inView.every((a) => Number(a.dataset.igcRank) >= end)) {
+          window.scrollBy(0, -window.innerHeight);
+        }
+      }
     }
 
     const [prev, label, next] = pager.children;
     prev.disabled = feedPage === 0;
     label.textContent = "第 " + (feedPage + 1) + " 頁";
-    const lastPage = feedEnded && feedOrder.length <= end;
     next.disabled = !pageFull || lastPage;
-    next.textContent = lastPage ? "沒有更多貼文了" : pageFull ? "下一頁 →" : "載入中…";
+    next.textContent = lastPage ? "沒有更多貼文了" : "下一頁 →";
   }
 
   // ---------- 首頁「貼文」模式：隱藏上方的「← 追蹤中」標題 ----------
@@ -388,6 +478,11 @@
     const variant = new URLSearchParams(location.search).get("variant");
     // 首頁預設 = 只有限時動態；?variant=following（或 past_posts）= 貼文模式
     const storiesOnly = p === "/" && variant !== "following" && variant !== "past_posts";
+    // 分頁按鈕掛在 <body> 上：離開首頁「貼文」模式就移除
+    if (p !== "/" || storiesOnly) {
+      const pager = document.getElementById("igc-pager");
+      if (pager) pager.remove();
+    }
     const explore = /^\/explore\/?$/.test(p);
     const root = document.documentElement;
     // 必須在拿掉 class 之前標記，中間不能有一次重繪
