@@ -168,7 +168,9 @@
     if (edge === null) return false;
     if (e.cancelable) e.preventDefault();
     else lockScroll();
-    if (Math.round(y) !== edge) window.scrollTo({ top: edge, behavior: "instant" });
+    // 還沒到邊界：補捲到邊界為止。已經超過邊界（例如第 10 篇的圖片載入後變矮、分頁按鈕往上移）：
+    // 停在原地，不要把畫面拉回去，否則看起來像被推回一小段
+    if (delta > 0 ? y < edge : y > edge) window.scrollTo({ top: edge, behavior: "instant" });
     return true;
   }
 
@@ -208,14 +210,22 @@
     { capture: true }
   );
 
-  // 保險：拖曳捲軸等無法事先攔下的捲動，超出範圍就拉回邊界
+  // 保險：拖曳捲軸等無法事先攔下的捲動，往外捲過邊界就擋下。
+  // 只擋「越捲越遠」：停在邊界或原本的位置（取比較靠外的那個），不會把畫面往回拉。
+  let lastScrollY = window.scrollY;
   window.addEventListener(
     "scroll",
     () => {
-      if (jumping) return;
-      const { min, max } = scrollRange();
-      if (min !== null && window.scrollY < min) window.scrollTo({ top: min, behavior: "instant" });
-      else if (max !== null && window.scrollY > max) window.scrollTo({ top: max, behavior: "instant" });
+      const y = window.scrollY;
+      if (!jumping) {
+        const { min, max } = scrollRange();
+        if (max !== null && y > max && y > lastScrollY) {
+          window.scrollTo({ top: Math.max(max, lastScrollY), behavior: "instant" });
+        } else if (min !== null && y < min && y < lastScrollY) {
+          window.scrollTo({ top: Math.min(min, lastScrollY), behavior: "instant" });
+        }
+      }
+      lastScrollY = window.scrollY;
     },
     { passive: true }
   );
