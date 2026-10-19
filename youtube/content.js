@@ -73,8 +73,12 @@
   // - 全部屬於別支影片：先藏起來（換影片的那一瞬間也會這樣，藏起來剛好不會看到舊留言）
   // - 連續 3 秒都還是這樣：自動重新整理頁面，影片從目前的秒數接著播
   // 同一支影片 1 分鐘內最多自動重新整理一次，避免一直重新整理。
+  // 有時舊留言身上的影片 ID 會被換成新影片的，只有文字還是舊的，所以也比對留言文字：
+  // 每次確認留言正確時記下前 5 則的文字；換到別支影片後，顯示的留言和上一支記下的
+  // 重複（至少 2 則；只有 1 則留言時就比那 1 則），也當成卡住。
   const STALE_RELOAD_KEY = "ytc-stale-comments-reload";
   let staleSince = 0;
+  let lastComments = null; // { vid, texts }：上一次確認正確的留言
   function checkStaleComments() {
     const vid = new URLSearchParams(location.search).get("v");
     const comments = document.querySelector("ytd-comments#comments");
@@ -86,10 +90,20 @@
         if (v) ids.add(v);
       } catch {}
     }
-    const stale = ids.size > 0 && !ids.has(vid);
+    const texts = [...comments.querySelectorAll("ytd-comment-thread-renderer #content-text")]
+      .slice(0, 5)
+      .map((e) => e.textContent.trim())
+      .filter(Boolean);
+    let textStale = false;
+    if (lastComments && lastComments.vid !== vid && texts.length) {
+      const repeated = texts.filter((t) => lastComments.texts.includes(t)).length;
+      textStale = repeated >= Math.min(2, texts.length);
+    }
+    const stale = (ids.size > 0 && !ids.has(vid)) || textStale;
     comments.classList.toggle("ytc-stale-comments", stale);
     if (!stale) {
       staleSince = 0;
+      if (texts.length) lastComments = { vid, texts };
       return;
     }
     if (!staleSince) staleSince = Date.now();
