@@ -12,7 +12,7 @@ A Chrome extension that stops doomscrolling on YouTube and Instagram. It hides s
 ## Instagram
 
 - Home shows only your stories by default; a 限時動態 / 貼文 switch above the stories shows posts from people you follow
-- The posts feed stops after 10 posts per page load, with an end-of-feed message instead of endless scrolling
+- The posts feed is split into pages of 10 posts with ← 上一頁 / 下一頁 → buttons instead of endless scrolling; Instagram only loads the next batch when you go to the next page
 - Hides Reels; single reels open as a normal post page you can't swipe through
 - Clears the Explore grid, leaving only search
 - Removes ads, suggested posts and the "more posts from" wall on post pages

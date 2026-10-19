@@ -50,36 +50,54 @@ html.igc-stories-only #igc-meme {
   user-select: none;
 }
 
-/* 「貼文」模式：超過 10 篇的貼文與後面的「載入更多」 */
-.igc-over-limit {
+/* 「貼文」模式分頁：不在目前這一頁的貼文，以及這一頁滿了之後的「載入更多」 */
+.igc-off-page {
   display: none !important;
 }
-/* 滿 10 篇後，拿掉清單底部替後面貼文預留的空白（Instagram 寫在 inline style 裡） */
-.igc-limit-list {
+/* 這一頁滿了：拿掉清單底部替後面貼文預留的空白（Instagram 寫在 inline style 裡） */
+.igc-page-full {
   padding-bottom: 0 !important;
 }
 
-/* 看滿 10 篇後的結尾訊息 */
-#igc-limit {
+/* 分頁按鈕：← 上一頁　第 N 頁　下一頁 → */
+#igc-pager {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 16px;
   margin: 24px auto 48px;
-  padding: 24px 16px;
+  padding-top: 24px;
   max-width: 470px;
   border-top: 1px solid rgba(128, 128, 128, 0.3);
-  text-align: center;
   font: 14px/1.4 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
   color: #737373;
 }
-#igc-limit strong {
-  font-size: 16px;
+#igc-pager button {
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #efefef;
   color: #000;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+#igc-pager button:hover:not(:disabled) {
+  background: #dbdbdb;
+}
+#igc-pager button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 @media (prefers-color-scheme: dark) {
-  #igc-limit strong {
+  #igc-pager button {
+    background: #262626;
     color: #f5f5f5;
+  }
+  #igc-pager button:hover:not(:disabled) {
+    background: #363636;
   }
 }
 
