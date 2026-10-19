@@ -128,6 +128,19 @@
     return pager;
   }
 
+  // 滑鼠滾輪連續捲動時，Chrome 會把它當成同一段手勢：第一下沒被取消，後面每一下都不能取消。
+  // 這時改成暫時鎖住整個頁面的捲動（overflow: hidden）並停在邊界，滾輪停下一下子再解鎖。
+  let lockTimer = 0;
+  function lockScroll() {
+    document.documentElement.classList.add("igc-scroll-lock");
+    clearTimeout(lockTimer);
+    lockTimer = setTimeout(unlockScroll, 250);
+  }
+  function unlockScroll() {
+    clearTimeout(lockTimer);
+    document.documentElement.classList.remove("igc-scroll-lock");
+  }
+
   // 捲動範圍：往上最多到本頁第一篇（第 1 頁不限制），往下最多到分頁按鈕完整出現。
   // 每次都用當下的位置計算（Instagram 會隨時調整預留空白，位置會變）。
   function scrollRange() {
@@ -146,16 +159,17 @@
   // 捲到頂或底就直接停住：在捲動發生之前判斷，這一下會超過範圍就取消，只捲到邊界為止。
   // （如果先讓瀏覽器捲過頭再拉回來，就會感覺被推回去。）
   function stopAtEdge(e, delta) {
-    if (jumping || delta === 0) return;
+    if (jumping || delta === 0) return false;
     const { min, max } = scrollRange();
     const y = window.scrollY;
-    if (delta > 0 && max !== null && y + delta > max) {
-      e.preventDefault();
-      if (y < max) window.scrollTo({ top: max, behavior: "instant" });
-    } else if (delta < 0 && min !== null && y + delta < min) {
-      e.preventDefault();
-      if (y > min) window.scrollTo({ top: min, behavior: "instant" });
-    }
+    let edge = null;
+    if (delta > 0 && max !== null && y + delta > max) edge = max;
+    else if (delta < 0 && min !== null && y + delta < min) edge = min;
+    if (edge === null) return false;
+    if (e.cancelable) e.preventDefault();
+    else lockScroll();
+    if (Math.round(y) !== edge) window.scrollTo({ top: edge, behavior: "instant" });
+    return true;
   }
 
   // 滑鼠滾輪、觸控板
@@ -166,7 +180,8 @@
       // 留言等對話框裡可以自己捲動，不要擋
       if (e.target.closest && e.target.closest("[role='dialog']")) return;
       const unit = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? window.innerHeight : 1;
-      stopAtEdge(e, e.deltaY * unit);
+      // 往離開邊界的方向捲：馬上解鎖
+      if (!stopAtEdge(e, e.deltaY * unit)) unlockScroll();
     },
     { passive: false, capture: true }
   );
@@ -259,6 +274,7 @@
       }
     }
 
+    document.documentElement.classList.add("igc-paged");
     const pager = document.getElementById("igc-pager") || createPager();
     const pageFull = feedOrder.length >= end;
     const feedEnded = !!findText(document.body, MARKER_RE); // 「沒有其他新動態了」
@@ -541,6 +557,7 @@
     if (p !== "/" || storiesOnly) {
       const pager = document.getElementById("igc-pager");
       if (pager) pager.remove();
+      document.documentElement.classList.remove("igc-scroll-lock", "igc-paged");
     }
     const explore = /^\/explore\/?$/.test(p);
     const root = document.documentElement;

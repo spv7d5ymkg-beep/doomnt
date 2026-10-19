@@ -55,6 +55,16 @@ html.igc-stories-only #igc-meme {
   visibility: hidden !important;
 }
 
+/* 分頁的捲動範圍（見 content.js）
+   - igc-scroll-lock：滑鼠滾輪連續捲到邊界時，暫時鎖住整個頁面的捲動
+   - igc-paged：永遠保留捲軸的位置，鎖住捲動時版面才不會左右跳 */
+html.igc-scroll-lock {
+  overflow: hidden !important;
+}
+html.igc-paged {
+  scrollbar-gutter: stable;
+}
+
 /* 分頁按鈕：← 上一頁　第 N 頁　下一頁 → */
 /* 掛在 <body> 上、絕對定位在本頁最後一篇正下方（位置、寬度由 content.js 設定） */
 #igc-pager {
