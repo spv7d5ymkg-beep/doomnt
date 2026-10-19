@@ -174,7 +174,34 @@
     return true;
   }
 
-  // 滑鼠滾輪、觸控板
+  // 滑鼠滾輪、觸控板。
+  // 能取消的滾輪事件：這一下會超過邊界就取消，補捲到邊界為止（stopAtEdge）。
+  // 不能取消的（連續滾動的同一段手勢）：Chrome 會在自己的捲動執行緒先捲出去，來不及攔。
+  // 所以離邊界只剩約 3 格時就提前鎖住頁面捲動，改由這裡一格一格捲，最多剛好捲到邊界，
+  // 不會先捲出去再被拉回來。
+  const WHEEL_LOOKAHEAD = 3;
+  function wheelAtEdge(e, delta) {
+    if (jumping || delta === 0) return false;
+    const { min, max } = scrollRange();
+    const towardMax = delta > 0 && max !== null;
+    const towardMin = delta < 0 && min !== null;
+    if (!towardMax && !towardMin) return false;
+    const edge = towardMax ? max : min;
+    const y = window.scrollY;
+    const dist = towardMax ? edge - y : y - edge; // 離邊界還有多遠（負數 = 已經超過）
+    const step = Math.abs(delta);
+    if (dist > step * WHEEL_LOOKAHEAD) return false; // 離邊界還遠：照常捲（呼叫端會解鎖）
+    const locked = document.documentElement.classList.contains("igc-scroll-lock");
+    if (e.cancelable && !locked) return stopAtEdge(e, delta);
+    if (e.cancelable) e.preventDefault();
+    lockScroll();
+    if (dist > 0) {
+      const target = towardMax ? Math.min(y + step, edge) : Math.max(y - step, edge);
+      window.scrollTo({ top: target, behavior: "instant" });
+    }
+    return true;
+  }
+
   window.addEventListener(
     "wheel",
     (e) => {
@@ -183,7 +210,7 @@
       if (e.target.closest && e.target.closest("[role='dialog']")) return;
       const unit = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? window.innerHeight : 1;
       // 往離開邊界的方向捲：馬上解鎖
-      if (!stopAtEdge(e, e.deltaY * unit)) unlockScroll();
+      if (!wheelAtEdge(e, e.deltaY * unit)) unlockScroll();
     },
     { passive: false, capture: true }
   );
