@@ -137,3 +137,8 @@ ytd-mini-guide-entry-renderer:has(a[href="/feed/trending"]),
 ytd-mini-guide-entry-renderer:has(a[href="/feed/explore"]) {
   display: none !important;
 }
+
+/* ========== 播放頁：留言卡在上一支影片時先藏起來（content.js 會自動重新整理） ========== */
+ytd-comments.ytc-stale-comments ytd-comment-thread-renderer {
+  display: none !important;
+}

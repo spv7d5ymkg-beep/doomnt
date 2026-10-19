@@ -67,6 +67,45 @@
     (btn.closest("button") || btn).click();
   }
 
+  // ---------- 播放頁：留言卡在上一支影片時自動修正 ----------
+  // 換影片後，YouTube 偶爾沒有重新抓留言，留言區還是上一支影片的。
+  // 每則留言的時間連結都帶著所屬影片的 ID（?v=…&lc=…），用它判斷留言是不是這支影片的：
+  // - 全部屬於別支影片：先藏起來（換影片的那一瞬間也會這樣，藏起來剛好不會看到舊留言）
+  // - 連續 3 秒都還是這樣：自動重新整理頁面，影片從目前的秒數接著播
+  // 同一支影片 1 分鐘內最多自動重新整理一次，避免一直重新整理。
+  const STALE_RELOAD_KEY = "ytc-stale-comments-reload";
+  let staleSince = 0;
+  function checkStaleComments() {
+    const vid = new URLSearchParams(location.search).get("v");
+    const comments = document.querySelector("ytd-comments#comments");
+    if (!vid || !comments) return;
+    const ids = new Set();
+    for (const a of comments.querySelectorAll('ytd-comment-thread-renderer a[href*="lc="]')) {
+      try {
+        const v = new URL(a.href, location.href).searchParams.get("v");
+        if (v) ids.add(v);
+      } catch {}
+    }
+    const stale = ids.size > 0 && !ids.has(vid);
+    comments.classList.toggle("ytc-stale-comments", stale);
+    if (!stale) {
+      staleSince = 0;
+      return;
+    }
+    if (!staleSince) staleSince = Date.now();
+    if (Date.now() - staleSince < 3000) return;
+    try {
+      const last = JSON.parse(sessionStorage.getItem(STALE_RELOAD_KEY) || "null");
+      if (last && last.vid === vid && Date.now() - last.at < 60000) return;
+      sessionStorage.setItem(STALE_RELOAD_KEY, JSON.stringify({ vid, at: Date.now() }));
+    } catch {}
+    const video = document.querySelector("video");
+    const url = new URL(location.href);
+    if (video && video.currentTime > 1) url.searchParams.set("t", Math.floor(video.currentTime) + "s");
+    redirecting = true;
+    location.replace(url.href);
+  }
+
   // ---------- 主檢查 ----------
   let redirecting = false;
   function check() {
@@ -87,6 +126,9 @@
     if (p === "/watch") {
       disableAutoplay();
       refitPlayer();
+      checkStaleComments();
+    } else {
+      staleSince = 0;
     }
   }
 
