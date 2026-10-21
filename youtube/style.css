@@ -142,3 +142,45 @@ ytd-mini-guide-entry-renderer:has(a[href="/feed/explore"]) {
 ytd-comments.ytc-stale-comments ytd-comment-thread-renderer {
   display: none !important;
 }
+
+/* ========== 訂閱內容：分頁（content.js） ========== */
+/* 不在這一頁的影片、第 2 頁以後的分組標題，以及這一頁滿了之後的「載入更多」 */
+.ytc-off-page {
+  display: none !important;
+}
+
+/* 分頁按鈕：← 上一頁　第 N 頁　下一頁 → */
+#ytc-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 24px auto 48px;
+  padding-top: 24px;
+  max-width: 600px;
+  border-top: 1px solid var(--yt-spec-10-percent-layer, rgba(128, 128, 128, 0.3));
+  font: 14px/1.4 "Roboto", "PingFang TC", "Noto Sans TC", sans-serif;
+  color: var(--yt-spec-text-secondary, #606060);
+}
+#ytc-pager[hidden] {
+  display: none;
+}
+#ytc-pager button {
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--yt-spec-badge-chip-background, rgba(0, 0, 0, 0.05));
+  color: var(--yt-spec-text-primary, #0f0f0f);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+#ytc-pager button:hover:not(:disabled) {
+  background: var(--yt-spec-button-chip-background-hover, rgba(0, 0, 0, 0.1));
+}
+#ytc-pager button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+

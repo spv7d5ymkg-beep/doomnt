@@ -120,6 +120,67 @@
     location.replace(url.href);
   }
 
+  // ---------- 訂閱內容：分頁，每頁 15 支影片 ----------
+  // 訂閱內容的影片都排在同一個格狀清單裡，YouTube 不會移除捲過去的影片，
+  // 所以直接依清單順序分頁：不在這一頁的影片用 display: none 藏起來。
+  // 這一頁滿 15 支後，藏起清單最後的「載入更多」，YouTube 就不會再往下載入，
+  // 頁面自然停在分頁按鈕。分組標題（「最新」）和「最相關」區塊只在第 1 頁顯示。
+  // Shorts 已被 style.css 藏起來，不算在內。從影片頁返回時留在原本的頁數，重新整理回到第 1 頁。
+  const SUBS_PAGE_SIZE = 15;
+  let subsPage = 0;
+
+  function isShortsItem(item) {
+    return !!item.querySelector('a[href^="/shorts/"]');
+  }
+
+  function paginateSubscriptions() {
+    const browse = document.querySelector('ytd-browse[page-subtype="subscriptions"]');
+    const contents = browse && browse.querySelector("ytd-rich-grid-renderer > #contents");
+    if (!contents) return;
+    const start = subsPage * SUBS_PAGE_SIZE;
+    const end = start + SUBS_PAGE_SIZE;
+    let rank = 0;
+    for (const el of contents.children) {
+      const tag = el.tagName;
+      if (tag === "YTD-RICH-ITEM-RENDERER") {
+        if (isShortsItem(el)) continue;
+        el.classList.toggle("ytc-off-page", rank < start || rank >= end);
+        rank++;
+      } else if (tag === "YTD-RICH-SECTION-RENDERER") {
+        el.classList.toggle("ytc-off-page", subsPage > 0);
+      }
+    }
+    const pageFull = rank >= end;
+    // 這一頁滿了就藏起「載入更多」，還沒滿就讓它出現、繼續載入
+    const more = contents.querySelector(":scope > ytd-continuation-item-renderer");
+    if (more) more.classList.toggle("ytc-off-page", pageFull);
+
+    let pager = browse.querySelector("#ytc-pager");
+    if (!pager) {
+      pager = document.createElement("nav");
+      pager.id = "ytc-pager";
+      pager.innerHTML =
+        '<button type="button" data-go="-1">← 上一頁</button>' +
+        "<span></span>" +
+        '<button type="button" data-go="1">下一頁 →</button>';
+      pager.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-go]");
+        if (!btn || btn.disabled) return;
+        subsPage = Math.max(0, subsPage + Number(btn.dataset.go));
+        paginateSubscriptions();
+        window.scrollTo({ top: 0, behavior: "instant" });
+      });
+    }
+    if (contents.nextElementSibling !== pager) contents.after(pager);
+    const lastPage = !more && rank <= end; // 沒有「載入更多」了：訂閱內容已經到底
+    pager.hidden = !pageFull && !lastPage; // 這一頁還在載入時先不顯示
+    const [prev, label, next] = pager.children;
+    prev.disabled = subsPage === 0;
+    label.textContent = "第 " + (subsPage + 1) + " 頁";
+    next.disabled = !pageFull || lastPage;
+    next.textContent = lastPage ? "沒有更多影片了" : "下一頁 →";
+  }
+
   // ---------- 主檢查 ----------
   let redirecting = false;
   function check() {
@@ -144,6 +205,7 @@
     } else {
       staleSince = 0;
     }
+    if (p === "/feed/subscriptions") paginateSubscriptions();
   }
 
   // ---------- 版面改變後，讓播放器重新計算大小 ----------
