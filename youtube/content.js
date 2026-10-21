@@ -129,6 +129,30 @@
   const SUBS_PAGE_SIZE = 15;
   let subsPage = 0;
 
+  // 點「訂閱內容」連結（側邊欄等）：回到第 1 頁。瀏覽器的上一頁不經過這裡，會留在原本的頁數。
+  window.addEventListener(
+    "click",
+    (e) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = e.target.closest && e.target.closest("a[href]");
+      if (!a || a.closest("#ytc-pager")) return;
+      let url;
+      try {
+        url = new URL(a.href, location.href);
+      } catch {
+        return;
+      }
+      if (url.hostname !== location.hostname || url.pathname !== "/feed/subscriptions") return;
+      subsPage = 0;
+      // 已經在訂閱內容頁時 YouTube 不一定會換頁，直接重新分頁、捲回頂端
+      if (location.pathname === "/feed/subscriptions") {
+        paginateSubscriptions();
+        window.scrollTo({ top: 0, behavior: "instant" });
+      }
+    },
+    true
+  );
+
   function isShortsItem(item) {
     return !!item.querySelector('a[href^="/shorts/"]');
   }
