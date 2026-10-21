@@ -35,10 +35,12 @@ ytd-browse[page-subtype="home"] > * {
 ytd-browse[page-subtype="home"]:not([hidden])::before {
   content: "";
   display: block;
-  /* 正方形圖片（每次載入隨機一張，見 content.js）：盡量填滿，但不高過一個螢幕 */
-  width: min(600px, 80vw, calc(100vh - 56px - 140px));
+  /* 正方形圖片（每次載入隨機一張，見 content.js）：盡量填滿，但不高過一個螢幕。
+     上方留 72px：YouTube 頂端有一條固定的霧面背景（#frosted-glass，到 112px），
+     留太少會蓋住圖片上緣，圓角看起來就變成直角 */
+  width: min(600px, 80vw, calc(100vh - 56px - 72px - 100px));
   aspect-ratio: 1;
-  margin: 40px auto 0;
+  margin: 72px auto 0;
   border-radius: 12px;
   background: var(--ytc-home-img) center / contain no-repeat;
 }
