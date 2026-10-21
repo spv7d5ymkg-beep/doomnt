@@ -413,6 +413,10 @@
 
   // ---------- 限時動態下方的空白處：放一張圖 ----------
   // 插在被隱藏的貼文區塊後面；只在「限時動態」模式由 CSS 顯示。
+  // 每次載入頁面隨機選一張
+  const POSTERS = ["poster-1.png", "poster-2.png", "poster-3.png", "poster-4.png"];
+  const poster = POSTERS[Math.floor(Math.random() * POSTERS.length)];
+
   function addMeme(postsBlock) {
     let box = document.getElementById("igc-meme");
     if (box && box.previousElementSibling === postsBlock) return;
@@ -420,7 +424,7 @@
       box = document.createElement("div");
       box.id = "igc-meme";
       const img = document.createElement("img");
-      img.src = chrome.runtime.getURL("images/nope.jpg");
+      img.src = chrome.runtime.getURL("images/" + poster);
       img.alt = "";
       img.draggable = false;
       box.appendChild(img);

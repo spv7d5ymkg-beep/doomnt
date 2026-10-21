@@ -35,11 +35,12 @@ ytd-browse[page-subtype="home"] > * {
 ytd-browse[page-subtype="home"]:not([hidden])::before {
   content: "";
   display: block;
-  width: min(344px, 80vw);
-  aspect-ratio: 344 / 581;
-  max-height: calc(100vh - 56px - 140px);
+  /* 正方形圖片（每次載入隨機一張，見 content.js）：盡量填滿，但不高過一個螢幕 */
+  width: min(600px, 80vw, calc(100vh - 56px - 140px));
+  aspect-ratio: 1;
   margin: 40px auto 0;
-  background: url("chrome-extension://__MSG_@@extension_id__/images/nope.jpg") center / contain no-repeat;
+  border-radius: 12px;
+  background: var(--ytc-home-img) center / contain no-repeat;
 }
 ytd-browse[page-subtype="home"]:not([hidden])::after {
   content: "首頁推薦已關閉。請使用上方搜尋列，或從側邊欄進入「訂閱內容」。";

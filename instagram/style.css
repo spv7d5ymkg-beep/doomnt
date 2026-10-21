@@ -40,11 +40,10 @@ html.igc-stories-only #igc-meme {
   justify-content: center;
   padding: 32px 16px;
 }
-/* 直式圖片：不放大超過原尺寸，也不要高過視窗 */
+/* 正方形圖片（每次載入隨機一張）：和貼文同寬，但不高過一個螢幕 */
 #igc-meme img {
-  width: auto;
-  max-width: min(344px, 100%);
-  max-height: calc(100vh - 240px);
+  width: min(470px, 100%, calc(100vh - 240px));
+  aspect-ratio: 1;
   height: auto;
   border-radius: 8px;
   user-select: none;
