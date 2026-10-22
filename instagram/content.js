@@ -87,6 +87,7 @@
   async function goToPage(page) {
     const forward = page > feedPage;
     feedPage = Math.max(0, page);
+    barMin = barMax = null;
     jumping = true;
     try {
       paginateFeed();
@@ -104,6 +105,7 @@
       }
     } finally {
       jumping = false;
+      updateBar();
     }
   }
 
@@ -257,6 +259,91 @@
     { passive: true }
   );
 
+  // ---------- 自訂捲軸：只代表目前這一頁 ----------
+  // Instagram 的動態是一條很長的清單（只顯示畫面附近的貼文），沒辦法真的切成獨立的頁面，
+  // 瀏覽器的捲軸會反映整條清單的位置，翻頁後不會回到最上面。
+  // 所以在「貼文」模式藏起瀏覽器的捲軸（style.css），改顯示這個捲軸：
+  // 頂端 = 本頁第一篇（第 1 頁是頁面最上方），底端 = 分頁按鈕完整出現的位置。
+  // 本頁第一篇或分頁按鈕不在頁面上時，用最後一次量到的位置。
+  let barMin = null; // 本頁可捲範圍的頂端（頁面座標）
+  let barMax = null; // 本頁可捲範圍的底端
+  let barGeom = null; // 最後一次畫捲軸時的 { lo, hi, track, thumbH }
+  let barPending = false;
+
+  function ensureBar() {
+    let bar = document.getElementById("igc-scrollbar");
+    if (bar) return bar;
+    bar = document.createElement("div");
+    bar.id = "igc-scrollbar";
+    const thumb = document.createElement("div");
+    thumb.id = "igc-scrollbar-thumb";
+    bar.appendChild(thumb);
+    // 拖曳滑桿
+    thumb.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || !barGeom) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const { lo, hi, track, thumbH } = barGeom;
+      const startY = e.clientY;
+      const startScroll = window.scrollY;
+      const perPx = (hi - lo) / Math.max(1, track - thumbH);
+      bar.classList.add("igc-dragging");
+      const move = (ev) => {
+        const y = Math.min(hi, Math.max(lo, startScroll + (ev.clientY - startY) * perPx));
+        window.scrollTo({ top: y, behavior: "instant" });
+      };
+      const up = () => {
+        bar.classList.remove("igc-dragging");
+        window.removeEventListener("mousemove", move, true);
+        window.removeEventListener("mouseup", up, true);
+      };
+      window.addEventListener("mousemove", move, true);
+      window.addEventListener("mouseup", up, true);
+    });
+    // 點滑桿以外的地方：往那個方向捲一個畫面
+    bar.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || e.target !== bar || !barGeom) return;
+      e.preventDefault();
+      const thumbTop = thumb.getBoundingClientRect().top;
+      const step = window.innerHeight * 0.9 * (e.clientY < thumbTop ? -1 : 1);
+      const { lo, hi } = barGeom;
+      window.scrollTo({ top: Math.min(hi, Math.max(lo, window.scrollY + step)), behavior: "instant" });
+    });
+    document.body.appendChild(bar);
+    return bar;
+  }
+
+  function updateBar() {
+    if (!document.body || !document.documentElement.classList.contains("igc-paged")) return;
+    if (jumping) return; // 翻頁捲動中，翻完再畫
+    const bar = ensureBar();
+    const thumb = bar.firstElementChild;
+    const { min, max } = scrollRange();
+    if (min !== null) barMin = min;
+    if (max !== null) barMax = max;
+    const lo = feedPage === 0 ? 0 : barMin !== null ? barMin : 0;
+    const docMax = document.documentElement.scrollHeight - window.innerHeight;
+    const hi = Math.max(lo, barMax !== null ? barMax : docMax);
+    const span = Math.max(1, hi - lo);
+    const track = bar.clientHeight;
+    const thumbH = Math.min(track, Math.max(40, (track * window.innerHeight) / (span + window.innerHeight)));
+    const ratio = Math.min(1, Math.max(0, (window.scrollY - lo) / span));
+    thumb.style.height = Math.round(thumbH) + "px";
+    thumb.style.transform = "translateY(" + Math.round(ratio * (track - thumbH)) + "px)";
+    barGeom = { lo, hi, track, thumbH };
+  }
+
+  function scheduleBar() {
+    if (barPending) return;
+    barPending = true;
+    requestAnimationFrame(() => {
+      barPending = false;
+      updateBar();
+    });
+  }
+  window.addEventListener("scroll", scheduleBar, { passive: true });
+  window.addEventListener("resize", scheduleBar);
+
   function createPager() {
     const pager = document.createElement("nav");
     pager.id = "igc-pager";
@@ -274,6 +361,7 @@
   function paginateFeed() {
     if (feedHref !== location.href) {
       feedHref = location.href;
+      barMin = barMax = null;
       feedOrder = [];
       feedPage = 0;
     }
@@ -312,6 +400,7 @@
     }
 
     document.documentElement.classList.add("igc-paged");
+    scheduleBar();
     const pager = document.getElementById("igc-pager") || createPager();
     const pageFull = feedOrder.length >= end;
     const feedEnded = !!findText(document.body, MARKER_RE); // 「沒有其他新動態了」

@@ -56,12 +56,42 @@ html.igc-stories-only #igc-meme {
 
 /* 分頁的捲動範圍（見 content.js）
    - igc-scroll-lock：滑鼠滾輪連續捲到邊界時，暫時鎖住整個頁面的捲動
-   - igc-paged：永遠保留捲軸的位置，鎖住捲動時版面才不會左右跳 */
+   - igc-paged：「貼文」模式（藏起瀏覽器捲軸、顯示自訂捲軸） */
 html.igc-scroll-lock {
   overflow: hidden !important;
 }
+/* 「貼文」模式：藏起瀏覽器的捲軸，改用只代表目前這一頁的自訂捲軸（見 content.js） */
 html.igc-paged {
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
+}
+html.igc-paged::-webkit-scrollbar {
+  display: none;
+}
+#igc-scrollbar {
+  display: none;
+}
+html.igc-paged #igc-scrollbar {
+  display: block;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 14px;
+  background: rgba(var(--ig-primary-text, 12, 16, 20), 0.04);
+}
+#igc-scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  right: 3px;
+  width: 8px;
+  border-radius: 4px;
+  background: rgba(var(--ig-primary-text, 12, 16, 20), 0.3);
+  cursor: default;
+}
+#igc-scrollbar:hover #igc-scrollbar-thumb,
+#igc-scrollbar.igc-dragging #igc-scrollbar-thumb {
+  background: rgba(var(--ig-primary-text, 12, 16, 20), 0.5);
 }
 
 /* 顏色一律用 Instagram 自己的色彩變數（格式是 "r, g, b"），跟著 Instagram 的「外觀」設定
