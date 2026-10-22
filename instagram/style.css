@@ -165,6 +165,15 @@ html.__fb-dark-mode #igc-pager button:hover:not(:disabled) {
 #igc-toggle a:hover {
   color: rgb(var(--ig-primary-text, 12, 16, 20));
 }
+/* 第 2 頁以後：掛在 <body> 上、絕對定位在本頁第一篇正上方（位置由 content.js 設定） */
+#igc-toggle.igc-toggle-floating {
+  position: absolute;
+  z-index: 1;
+  margin: 0;
+}
+#igc-toggle[hidden] {
+  display: none;
+}
 /* 目前的模式：反白 */
 #igc-toggle a.igc-active {
   background: rgb(var(--ig-primary-text, 12, 16, 20));

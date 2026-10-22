@@ -110,8 +110,25 @@
   }
 
   // 本頁第一篇上方留一點空間的位置
+  // 第 2 頁以後，第一篇上方留 80px：「限時動態／貼文」切換按鈕放在這裡（見 placeFloatingToggle）
+  const PAGE_TOP_GAP = 80;
   function pageTop(el) {
-    return Math.max(0, Math.round(el.getBoundingClientRect().top + window.scrollY - 24));
+    return Math.max(0, Math.round(el.getBoundingClientRect().top + window.scrollY - PAGE_TOP_GAP));
+  }
+
+  // 第 2 頁以後：切換按鈕放在本頁第一篇正上方。
+  // 貼文清單裡不能插東西（Instagram 會算錯要顯示哪幾篇），所以和分頁按鈕一樣掛在 <body> 上絕對定位。
+  function placeFloatingToggle() {
+    const box = document.getElementById("igc-toggle");
+    if (!box || !box.classList.contains("igc-toggle-floating")) return;
+    if (!pageFirst || !pageFirst.isConnected) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    const r = pageFirst.getBoundingClientRect();
+    box.style.top = Math.round(r.top + window.scrollY - box.offsetHeight - 20) + "px";
+    box.style.left = Math.round(r.left + window.scrollX + (r.width - box.offsetWidth) / 2) + "px";
   }
 
   // 把分頁按鈕對齊本頁最後一篇的正下方；那一篇不在頁面上就藏起來
@@ -339,6 +356,7 @@
     requestAnimationFrame(() => {
       barPending = false;
       updateBar();
+      placeFloatingToggle(); // Instagram 調整預留空白時，第一篇的位置會變
     });
   }
   window.addEventListener("scroll", scheduleBar, { passive: true });
@@ -600,9 +618,19 @@
         '<a data-mode="stories" href="/">限時動態</a>' +
         '<a data-mode="posts" href="/?variant=following">貼文</a>';
     }
-    // 限時動態模式：限時動態列上方；貼文模式：被藏起來的「← 追蹤中」標題的位置（沒有就放第一篇貼文上方）
-    const spot = storiesOnly ? toggleSpot(homeAnchor) : header || homeAnchor;
-    if (box.nextElementSibling !== spot) spot.before(box);
+    if (!storiesOnly && feedPage > 0) {
+      // 貼文模式第 2 頁以後：本頁第一篇正上方
+      if (box.parentElement !== document.body) document.body.appendChild(box);
+      box.classList.add("igc-toggle-floating");
+      placeFloatingToggle();
+    } else {
+      // 限時動態模式：限時動態列上方；貼文模式第 1 頁：被藏起來的「← 追蹤中」標題的位置（沒有就放第一篇貼文上方）
+      box.classList.remove("igc-toggle-floating");
+      box.hidden = false;
+      box.style.top = box.style.left = "";
+      const spot = storiesOnly ? toggleSpot(homeAnchor) : header || homeAnchor;
+      if (box.nextElementSibling !== spot) spot.before(box);
+    }
     const mode = storiesOnly ? "stories" : "posts";
     for (const a of box.querySelectorAll("a")) {
       a.classList.toggle("igc-active", a.dataset.mode === mode);
