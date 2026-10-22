@@ -64,6 +64,9 @@ html.igc-paged {
   scrollbar-gutter: stable;
 }
 
+/* 顏色一律用 Instagram 自己的色彩變數（格式是 "r, g, b"），跟著 Instagram 的「外觀」設定
+   切換深色／淺色，而不是跟著系統。括號裡的是淺色模式的值，變數不存在時才會用到。 */
+
 /* 分頁按鈕：← 上一頁　第 N 頁　下一頁 → */
 /* 掛在 <body> 上、絕對定位在本頁最後一篇正下方（位置、寬度由 content.js 設定） */
 #igc-pager {
@@ -76,9 +79,9 @@ html.igc-paged {
   gap: 16px;
   margin: 0;
   padding-top: 24px;
-  border-top: 1px solid rgba(128, 128, 128, 0.3);
+  border-top: 1px solid rgb(var(--ig-separator, 219, 223, 228));
   font: 14px/1.4 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
-  color: #737373;
+  color: rgb(var(--ig-secondary-text, 106, 113, 122));
 }
 #igc-pager[hidden] {
   display: none;
@@ -87,29 +90,28 @@ html.igc-paged {
   padding: 8px 16px;
   border: 0;
   border-radius: 8px;
-  background: #efefef;
-  color: #000;
+  background: rgb(var(--ig-highlight-background, 243, 245, 247));
+  color: rgb(var(--ig-primary-text, 12, 16, 20));
   font-family: inherit;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
 }
+/* 「下一頁」：反白（淺色模式黑底白字、深色模式白底黑字），最醒目 */
+#igc-pager button[data-go="1"] {
+  background: rgb(var(--ig-primary-text, 12, 16, 20));
+  color: rgb(var(--ig-primary-background, 255, 255, 255));
+}
 #igc-pager button:hover:not(:disabled) {
-  background: #dbdbdb;
+  filter: brightness(0.92);
+}
+html.__fb-dark-mode #igc-pager button:hover:not(:disabled) {
+  filter: brightness(1.25);
 }
 #igc-pager button:disabled {
   opacity: 0.4;
   cursor: default;
-}
-@media (prefers-color-scheme: dark) {
-  #igc-pager button {
-    background: #262626;
-    color: #f5f5f5;
-  }
-  #igc-pager button:hover:not(:disabled) {
-    background: #363636;
-  }
 }
 
 /* 限時動態 / 貼文 切換按鈕 */
@@ -121,35 +123,20 @@ html.igc-paged {
   gap: 2px;
   padding: 3px;
   border-radius: 999px;
-  background: #efefef;
+  background: rgb(var(--ig-highlight-background, 243, 245, 247));
   font: 600 14px/1.2 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
 }
 #igc-toggle a {
   padding: 7px 14px;
   border-radius: 999px;
-  color: #737373;
+  color: rgb(var(--ig-secondary-text, 106, 113, 122));
   text-decoration: none;
 }
 #igc-toggle a:hover {
-  color: #000;
+  color: rgb(var(--ig-primary-text, 12, 16, 20));
 }
+/* 目前的模式：反白 */
 #igc-toggle a.igc-active {
-  background: #fff;
-  color: #000;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-}
-@media (prefers-color-scheme: dark) {
-  #igc-toggle {
-    background: #262626;
-  }
-  #igc-toggle a {
-    color: #a8a8a8;
-  }
-  #igc-toggle a:hover {
-    color: #f5f5f5;
-  }
-  #igc-toggle a.igc-active {
-    background: #464646;
-    color: #f5f5f5;
-  }
+  background: rgb(var(--ig-primary-text, 12, 16, 20));
+  color: rgb(var(--ig-primary-background, 255, 255, 255));
 }

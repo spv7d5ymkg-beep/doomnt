@@ -50,7 +50,10 @@ ytd-browse[page-subtype="home"]:not([hidden])::after {
   padding: 20px 24px 40px;
   text-align: center;
   font-size: 14px;
-  color: var(--yt-spec-text-secondary, #606060);
+  color: #606060;
+}
+html[dark] ytd-browse[page-subtype="home"]:not([hidden])::after {
+  color: #aaa;
 }
 
 /* ========== 播放頁：只留影片、說明與留言 ========== */
@@ -153,6 +156,7 @@ ytd-comments.ytc-stale-comments ytd-comment-thread-renderer {
 }
 
 /* 分頁按鈕：← 上一頁　第 N 頁　下一頁 → */
+/* YouTube 的色彩變數在這裡讀不到，所以自己寫淺色／深色兩組，跟著 YouTube 的深色模式（html[dark]） */
 #ytc-pager {
   display: flex;
   align-items: center;
@@ -161,9 +165,9 @@ ytd-comments.ytc-stale-comments ytd-comment-thread-renderer {
   margin: 24px auto 48px;
   padding-top: 24px;
   max-width: 600px;
-  border-top: 1px solid var(--yt-spec-10-percent-layer, rgba(128, 128, 128, 0.3));
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
   font: 14px/1.4 "Roboto", "PingFang TC", "Noto Sans TC", sans-serif;
-  color: var(--yt-spec-text-secondary, #606060);
+  color: #606060;
 }
 #ytc-pager[hidden] {
   display: none;
@@ -172,18 +176,43 @@ ytd-comments.ytc-stale-comments ytd-comment-thread-renderer {
   padding: 10px 18px;
   border: 0;
   border-radius: 18px;
-  background: var(--yt-spec-badge-chip-background, rgba(0, 0, 0, 0.05));
-  color: var(--yt-spec-text-primary, #0f0f0f);
+  background: rgba(0, 0, 0, 0.05);
+  color: #0f0f0f;
   font-family: inherit;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
 #ytc-pager button:hover:not(:disabled) {
-  background: var(--yt-spec-button-chip-background-hover, rgba(0, 0, 0, 0.1));
+  background: rgba(0, 0, 0, 0.1);
+}
+/* 「下一頁」：反白，最醒目 */
+#ytc-pager button[data-go="1"] {
+  background: #0f0f0f;
+  color: #fff;
+}
+#ytc-pager button[data-go="1"]:hover:not(:disabled) {
+  background: #272727;
 }
 #ytc-pager button:disabled {
   opacity: 0.4;
   cursor: default;
 }
-
+html[dark] #ytc-pager {
+  border-top-color: rgba(255, 255, 255, 0.2);
+  color: #aaa;
+}
+html[dark] #ytc-pager button {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f1f1f1;
+}
+html[dark] #ytc-pager button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+}
+html[dark] #ytc-pager button[data-go="1"] {
+  background: #f1f1f1;
+  color: #0f0f0f;
+}
+html[dark] #ytc-pager button[data-go="1"]:hover:not(:disabled) {
+  background: #d9d9d9;
+}
