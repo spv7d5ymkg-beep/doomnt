@@ -1,7 +1,7 @@
 (function () {
   // ---------- 首頁空白處的圖片：每次載入頁面隨機一張 ----------
   // style.css 用 --ytc-home-img 當首頁的背景圖
-  const POSTERS = ["poster-1.png", "poster-2.png", "poster-3.png", "poster-4.png"];
+  const POSTERS = ["poster-1.png", "poster-2.png", "poster-3.png", "poster-4.png", "poster-5.png", "poster-6.png", "poster-7.png", "poster-8.png"];
   const poster = POSTERS[Math.floor(Math.random() * POSTERS.length)];
   document.documentElement.style.setProperty(
     "--ytc-home-img",

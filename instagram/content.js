@@ -521,7 +521,7 @@
   // ---------- 限時動態下方的空白處：放一張圖 ----------
   // 插在被隱藏的貼文區塊後面；只在「限時動態」模式由 CSS 顯示。
   // 每次載入頁面隨機選一張
-  const POSTERS = ["poster-1.png", "poster-2.png", "poster-3.png", "poster-4.png"];
+  const POSTERS = ["poster-1.png", "poster-2.png", "poster-3.png", "poster-4.png", "poster-5.png", "poster-6.png", "poster-7.png", "poster-8.png"];
   const poster = POSTERS[Math.floor(Math.random() * POSTERS.length)];
 
   function addMeme(postsBlock) {

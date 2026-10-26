@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Doomn't",
-  "version": "2.6.1",
+  "version": "2.7.0",
   "description": "不再無限滑：隱藏 YouTube Shorts 與推薦影片、Instagram Reels / 探索 / 建議貼文，只留下你自己選擇要看的內容。",
   "icons": {
     "16": "icons/icon-16.png",
@@ -49,7 +49,11 @@
         "images/poster-1.png",
         "images/poster-2.png",
         "images/poster-3.png",
-        "images/poster-4.png"
+        "images/poster-4.png",
+        "images/poster-5.png",
+        "images/poster-6.png",
+        "images/poster-7.png",
+        "images/poster-8.png"
       ],
       "matches": [
         "https://www.youtube.com/*",
