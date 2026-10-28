@@ -166,6 +166,35 @@
     return !!item.querySelector('a[href^="/shorts/"]');
   }
 
+  // 清單模式（style.css）藏起了縮圖，影片長度只印在縮圖上，所以把它複製到文字列最後。
+  // 觀看次數原本靠旁邊的小圖示辨認（圖示在這裡畫不出來），所以在數字後面補上「次觀看」。
+  function showDurations(contents) {
+    for (const item of contents.querySelectorAll("ytd-rich-item-renderer")) {
+      const rows = item.querySelectorAll(".ytContentMetadataViewModelMetadataRow");
+      const row = rows[rows.length - 1];
+      if (!row) continue;
+      for (const el of row.querySelectorAll("[aria-label]")) {
+        const label = el.getAttribute("aria-label");
+        const suffix = /觀看/.test(label) ? " 次觀看" : /views?\b/i.test(label) ? " views" : "";
+        if (el.classList.contains("ytc-views") !== !!suffix) el.classList.toggle("ytc-views", !!suffix);
+        if (suffix && el.dataset.ytcSuffix !== suffix) el.dataset.ytcSuffix = suffix;
+      }
+      const badge = item.querySelector("yt-thumbnail-badge-view-model");
+      const text = badge ? badge.textContent.trim() : "";
+      let span = row.querySelector(".ytc-duration");
+      if (!text) {
+        if (span) span.remove();
+        continue;
+      }
+      if (!span) {
+        span = document.createElement("span");
+        span.className = "ytc-duration";
+        row.append(span);
+      }
+      if (span.textContent !== text) span.textContent = text;
+    }
+  }
+
   function paginateSubscriptions() {
     const browse = document.querySelector('ytd-browse[page-subtype="subscriptions"]');
     const contents = browse && browse.querySelector("ytd-rich-grid-renderer > #contents");
@@ -183,6 +212,7 @@
         el.classList.toggle("ytc-off-page", subsPage > 0);
       }
     }
+    showDurations(contents);
     const pageFull = rank >= end;
     // 這一頁滿了就藏起「載入更多」，還沒滿就讓它出現、繼續載入
     const more = contents.querySelector(":scope > ytd-continuation-item-renderer");

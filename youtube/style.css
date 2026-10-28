@@ -155,6 +155,53 @@ ytd-comments.ytc-stale-comments ytd-comment-thread-renderer {
   display: none !important;
 }
 
+/* 清單模式：拿掉縮圖與頻道頭像，每支影片一列文字
+   （標題；頻道・觀看次數・時間・長度）。長度原本印在縮圖上，由 content.js 搬到文字列最後 */
+ytd-browse[page-subtype="subscriptions"] ytd-rich-grid-renderer > #contents {
+  max-width: 880px;
+  margin: 0 auto !important;
+}
+ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer {
+  width: 100% !important;
+  margin: 0 !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+html[dark] ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer {
+  border-bottom-color: rgba(255, 255, 255, 0.15);
+}
+ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytLockupViewModelContentImage,
+ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytLockupMetadataViewModelAvatar {
+  display: none !important;
+}
+ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytLockupViewModelHost {
+  padding: 14px 4px;
+}
+ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytLockupMetadataViewModelTextContainer {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+/* 文字列：YouTube 的分隔符號是空的、小圖示在這裡也畫不出來（只剩空白），
+   改成「頻道 • 1.5萬 次觀看 • 3 小時前 • 24:31」 */
+ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytContentMetadataViewModelIcon,
+ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytContentMetadataViewModelLeadingIcon {
+  display: none !important;
+}
+ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytContentMetadataViewModelDelimiter::before,
+.ytc-duration::before {
+  content: "•";
+  margin: 0 6px;
+}
+.ytc-duration {
+  font-size: 14px;
+}
+/* YouTube 的分隔符號本身左右各有 4px，長度前面的分隔符號補上，間距才一致 */
+.ytc-duration::before {
+  margin: 0 10px;
+}
+.ytc-views::after {
+  content: attr(data-ytc-suffix);
+}
+
 /* 分頁按鈕：← 上一頁　第 N 頁　下一頁 → */
 /* YouTube 的色彩變數在這裡讀不到，所以自己寫淺色／深色兩組，跟著 YouTube 的深色模式（html[dark]） */
 #ytc-pager {
