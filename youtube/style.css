@@ -189,7 +189,7 @@ ytd-rich-grid-renderer > #contents {
 }
 ytd-rich-item-renderer,
 ytd-grid-renderer #items > *,
-yt-horizontal-list-renderer #items > * {
+yt-horizontal-list-renderer #items > :not(ytd-post-renderer) {
   width: 100% !important;
   max-width: none !important;
   margin: 0 !important;
@@ -197,7 +197,7 @@ yt-horizontal-list-renderer #items > * {
 }
 html[dark] ytd-rich-item-renderer,
 html[dark] ytd-grid-renderer #items > *,
-html[dark] yt-horizontal-list-renderer #items > * {
+html[dark] yt-horizontal-list-renderer #items > :not(ytd-post-renderer) {
   border-bottom-color: rgba(255, 255, 255, 0.15);
 }
 ytd-rich-item-renderer .ytLockupViewModelHost,
@@ -244,6 +244,60 @@ yt-horizontal-list-renderer #items > * {
 }
 yt-horizontal-list-renderer #left-arrow,
 yt-horizontal-list-renderer #right-arrow {
+  display: none !important;
+}
+
+/* 社群貼文（頻道首頁）：維持原本的卡片外框，只是改成一張接一張往下排 */
+yt-horizontal-list-renderer #items > ytd-post-renderer {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 0 16px !important;
+}
+
+/* 滑鼠移過影片時的反白：拿掉（它還比影片列大一圈，會蓋到上下兩支） */
+yt-lockup-view-model yt-touch-feedback-shape {
+  display: none !important;
+}
+
+/* 精選頻道：不顯示頭像，每個頻道一列（頻道名稱、訂閱人數；右邊是訂閱按鈕） */
+ytd-grid-channel-renderer #channel {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px;
+  width: auto !important;
+  height: auto !important;
+  padding: 12px 4px;
+}
+ytd-grid-channel-renderer #channel-info {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start !important;
+  height: auto !important;
+}
+ytd-grid-channel-renderer #title,
+ytd-grid-channel-renderer #thumbnail-attribution {
+  text-align: left !important;
+  margin: 0 !important;
+}
+ytd-grid-channel-renderer #subscribe {
+  margin: 0 !important;
+}
+
+/* ========== 全站拿掉個人頭像與頻道封面（右上角自己帳號的頭像除外） ========== */
+ytd-grid-channel-renderer yt-img-shadow,
+yt-image-banner-view-model,
+yt-page-header-view-model yt-decorated-avatar-view-model,
+ytd-video-owner-renderer #avatar,
+ytd-post-renderer #author-thumbnail,
+ytd-comment-view-model #author-thumbnail,
+ytd-comment-renderer #author-thumbnail,
+ytd-comment-simplebox-renderer #author-thumbnail,
+ytd-channel-renderer #avatar-section,
+ytd-guide-entry-renderer yt-img-shadow,
+ytd-recognition-shelf-renderer yt-img-shadow,
+ytd-notification-renderer yt-img-shadow {
   display: none !important;
 }
 
