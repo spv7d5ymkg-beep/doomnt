@@ -321,6 +321,7 @@ ytd-channel-renderer #avatar-section,
 ytd-guide-entry-renderer yt-img-shadow,
 ytd-recognition-shelf-renderer yt-img-shadow,
 yt-list-item-view-model avatar-view-model,
+.ytListItemViewModelImageContainer:has(> avatar-view-model),
 ytd-watch-card-hero-video-renderer ytd-single-hero-image-renderer,
 ytd-notification-renderer yt-img-shadow {
   display: none !important;
