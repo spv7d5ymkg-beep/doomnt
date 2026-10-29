@@ -155,48 +155,152 @@ ytd-comments.ytc-stale-comments ytd-comment-thread-renderer {
   display: none !important;
 }
 
-/* 清單模式：拿掉縮圖與頻道頭像，每支影片一列文字
-   （標題；頻道・觀看次數・時間・長度）。長度原本印在縮圖上，由 content.js 搬到文字列最後 */
-ytd-browse[page-subtype="subscriptions"] ytd-rich-grid-renderer > #contents {
-  max-width: 880px;
-  margin: 0 auto !important;
-}
-ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer {
-  width: 100% !important;
-  margin: 0 !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-html[dark] ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer {
-  border-bottom-color: rgba(255, 255, 255, 0.15);
-}
-ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytLockupViewModelContentImage,
-ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytLockupMetadataViewModelAvatar {
+/* 訂閱內容：「最相關」區塊（第 1 頁中間那排精選影片）整個不顯示 */
+ytd-browse[page-subtype="subscriptions"] ytd-rich-section-renderer:has(ytd-rich-shelf-renderer) {
   display: none !important;
 }
-ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytLockupViewModelHost {
-  padding: 14px 4px;
+
+/* ========== 清單模式：全站拿掉縮圖，每支影片一列文字 ========== */
+/* 「標題；頻道 • 觀看次數 • 時間 • 長度」。長度原本印在縮圖上，由 content.js 搬到文字列最後 */
+
+/* 縮圖、播放清單封面、清單裡的頻道頭像、章節縮圖 */
+ytd-thumbnail,
+yt-thumbnail-view-model,
+yt-collection-thumbnail-view-model,
+.ytLockupViewModelContentImage,
+.ytLockupMetadataViewModelAvatar,
+ytd-video-renderer #channel-thumbnail,
+ytd-video-renderer ytd-expandable-metadata-renderer,
+ytd-playlist-header-renderer yt-img-shadow,
+ytd-hero-playlist-thumbnail-renderer,
+ytd-playlist-panel-video-renderer #thumbnail-container,
+yt-page-header-renderer yt-content-preview-image-view-model {
+  display: none !important;
 }
-ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytLockupMetadataViewModelTextContainer {
+.ytLockupMetadataViewModelTextContainer {
   padding-left: 0 !important;
   margin-left: 0 !important;
 }
-/* 文字列：YouTube 的分隔符號是空的、小圖示在這裡也畫不出來（只剩空白），
-   改成「頻道 • 1.5萬 次觀看 • 3 小時前 • 24:31」 */
-ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytContentMetadataViewModelIcon,
-ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytContentMetadataViewModelLeadingIcon {
+
+/* 格狀版面（訂閱內容、頻道的影片／播放清單分頁、個人中心）→ 一欄 */
+ytd-rich-grid-renderer > #contents {
+  max-width: 880px;
+  margin: 0 auto !important;
+}
+ytd-rich-item-renderer,
+ytd-grid-renderer #items > *,
+yt-horizontal-list-renderer #items > * {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+html[dark] ytd-rich-item-renderer,
+html[dark] ytd-grid-renderer #items > *,
+html[dark] yt-horizontal-list-renderer #items > * {
+  border-bottom-color: rgba(255, 255, 255, 0.15);
+}
+ytd-rich-item-renderer .ytLockupViewModelHost,
+ytd-grid-renderer .ytLockupViewModelHost,
+yt-horizontal-list-renderer .ytLockupViewModelHost {
+  padding: 14px 4px;
+}
+ytd-grid-renderer #items {
+  display: block !important;
+}
+/* 個人中心一排排左右滑的影片（觀看記錄、播放清單、稍後觀看…）→ 直的清單，拿掉左右箭頭 */
+ytd-rich-shelf-renderer #contents {
+  flex-wrap: wrap !important;
+  margin-left: 0 !important;
+  transform: none !important;
+}
+ytd-rich-shelf-renderer #menu-container yt-button-view-model:has(
+    button[aria-label="前一頁"],
+    button[aria-label="下一頁"],
+    button[aria-label="Previous"],
+    button[aria-label="Next"]
+  ) {
   display: none !important;
 }
-ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer .ytContentMetadataViewModelDelimiter::before,
-.ytc-duration::before {
+
+/* 頻道首頁一排排左右滑的影片 → 直的清單 */
+yt-horizontal-list-renderer #scroll-outer-container,
+yt-horizontal-list-renderer #scroll-container {
+  overflow: visible !important;
+}
+yt-horizontal-list-renderer #scroll-container {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+}
+yt-horizontal-list-renderer #items {
+  display: block !important;
+  width: auto !important;
+  transform: none !important;
+  white-space: normal !important;
+}
+yt-horizontal-list-renderer #items > * {
+  display: block !important;
+  box-sizing: border-box;
+}
+yt-horizontal-list-renderer #left-arrow,
+yt-horizontal-list-renderer #right-arrow {
+  display: none !important;
+}
+
+/* 搜尋結果：和其他清單一樣用分隔線隔開、排緊一點 */
+ytd-search ytd-video-renderer {
+  margin-top: 0 !important;
+  padding: 14px 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+html[dark] ytd-search ytd-video-renderer {
+  border-bottom-color: rgba(255, 255, 255, 0.15);
+}
+ytd-video-renderer #channel-info {
+  padding: 4px 0 !important;
+}
+/* 章節縮圖藏起來後，它的外框還留著上下 12px 的空白 */
+ytd-video-renderer #expandable-metadata {
+  display: none !important;
+}
+
+/* 搜尋結果的影片說明：最多兩行 */
+ytd-video-renderer .metadata-snippet-text {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  max-height: none !important;
+  overflow: hidden;
+  white-space: normal !important;
+}
+
+/* 文字列：YouTube 的分隔符號是空的、小圖示拿掉縮圖後也畫不出來（只剩空白），
+   改成「頻道 • 1.5萬 次觀看 • 3 小時前 • 24:31」 */
+.ytContentMetadataViewModelIcon,
+.ytContentMetadataViewModelLeadingIcon {
+  display: none !important;
+}
+.ytContentMetadataViewModelDelimiter::before {
   content: "•";
   margin: 0 6px;
 }
-.ytc-duration {
-  font-size: 14px;
+ytc-duration::before {
+  content: "•";
+  margin: 0 6px;
 }
 /* YouTube 的分隔符號本身左右各有 4px，長度前面的分隔符號補上，間距才一致 */
-.ytc-duration::before {
+.ytContentMetadataViewModelMetadataRow > ytc-duration::before {
   margin: 0 10px;
+}
+/* 播放清單頁與播放清單面板：和旁邊的「觀看次數・時間」同一個灰色 */
+#byline-container > ytc-duration {
+  color: var(--yt-spec-text-secondary, #606060);
+}
+html[dark] #byline-container > ytc-duration {
+  color: var(--yt-spec-text-secondary, #aaa);
+}
+.ytContentMetadataViewModelMediumText ytc-duration {
+  font-size: 14px;
 }
 .ytc-views::after {
   content: attr(data-ytc-suffix);
