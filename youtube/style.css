@@ -177,11 +177,24 @@ ytd-comments.ytc-stale-comments ytd-comment-thread-renderer {
 ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer.ytc-last-today {
   border-bottom: none !important;
 }
+/* 紅線用 ::after 畫成圓頭的長條（border 做不出圓角），「更早」放在 ::before */
+ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer.ytc-first-earlier {
+  position: relative;
+}
+ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer.ytc-first-earlier::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: #ff4f1a;
+}
 ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer.ytc-first-earlier::before {
   content: "更早";
   display: block;
-  border-top: 2px solid #ff4f1a;
-  padding: 12px 4px 0;
+  padding: 16px 4px 0;
   font: 500 12px/1 "Roboto", "PingFang TC", "Noto Sans TC", sans-serif;
   letter-spacing: 3px;
   color: #606060;
