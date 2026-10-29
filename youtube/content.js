@@ -308,6 +308,7 @@
     if (p === "/watch") {
       disableAutoplay();
       refitPlayer();
+      fixVideoSize();
       checkStaleComments();
     } else {
       staleSince = 0;
@@ -325,6 +326,30 @@
     for (const ms of [0, 300, 1000, 2500]) {
       setTimeout(() => window.dispatchEvent(new Event("resize")), ms);
     }
+  }
+
+  // ---------- 影片畫面小一號時，立刻修正 ----------
+  // 推薦欄拿掉後，YouTube 有時仍用「有推薦欄」時的寬度初始化影片畫面：外框大小是對的，
+  // 影片畫面卻小一號（例如 674 寬放在 1064 寬的外框裡），半秒多後才自己長回來，看起來像縮了一下。
+  // 影片畫面大小一改變就檢查；比外框小一圈（寬、高都對不上，直式影片只有寬度不同不算）就立刻請播放器重算。
+  let watchedVideo = null;
+  let lastVideoFix = 0;
+  const videoResize = new ResizeObserver(() => fixVideoSize());
+  function fixVideoSize() {
+    const player = document.querySelector("ytd-watch-flexy:not([hidden]) #movie_player");
+    const video = player && player.querySelector("video");
+    if (!video) return;
+    if (video !== watchedVideo) {
+      videoResize.disconnect();
+      videoResize.observe(video);
+      watchedVideo = video;
+    }
+    const p = player.getBoundingClientRect();
+    const v = video.getBoundingClientRect();
+    if (!v.width || Math.abs(v.width - p.width) < 2 || Math.abs(v.height - p.height) < 2) return;
+    if (Date.now() - lastVideoFix < 200) return;
+    lastVideoFix = Date.now();
+    window.dispatchEvent(new Event("resize"));
   }
 
   let pending = false;
