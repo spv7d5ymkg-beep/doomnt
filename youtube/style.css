@@ -294,10 +294,16 @@ ytd-video-renderer:hover {
   background-color: transparent !important;
 }
 
-/* 清單裡影片下方的動作按鈕（例如首播的「通知我」）：不要拉滿整列，
-   改成靠左的小外框按鈕，顏色和資訊列一樣低調 */
+/* 清單裡影片的動作按鈕（例如首播的「通知我」）：content.js 把它搬到文字列最後（「即將直播」旁邊），
+   不要拉滿整列，改成小外框按鈕，顏色和資訊列一樣低調 */
 yt-lockup-view-model .ytLockupAttachmentsViewModelAttachment {
   margin-top: 8px !important;
+}
+.ytContentMetadataViewModelMetadataRow > lockup-attachments-view-model {
+  margin-left: 12px;
+}
+.ytContentMetadataViewModelMetadataRow > lockup-attachments-view-model .ytLockupAttachmentsViewModelAttachment {
+  margin-top: 0 !important;
 }
 yt-lockup-view-model yt-flexible-actions-view-model,
 yt-lockup-view-model .ytFlexibleActionsViewModelActionRow {
@@ -310,8 +316,8 @@ yt-lockup-view-model .ytFlexibleActionsViewModelAction {
 }
 yt-lockup-view-model .ytFlexibleActionsViewModelAction button {
   width: auto !important;
-  height: 26px !important;
-  padding: 0 12px !important;
+  height: 24px !important;
+  padding: 0 10px !important;
   background: transparent !important;
   border: 1px solid rgba(0, 0, 0, 0.15) !important;
   color: #606060 !important;
@@ -329,6 +335,11 @@ html[dark] yt-lockup-view-model .ytFlexibleActionsViewModelAction button {
 html[dark] yt-lockup-view-model .ytFlexibleActionsViewModelAction button:hover {
   border-color: rgba(255, 255, 255, 0.4) !important;
   color: #f1f1f1 !important;
+}
+
+/* 訂閱內容第 1 頁最上方的「最新」標題：不顯示（右邊的「所有訂閱頻道」按鈕保留） */
+ytd-browse[page-subtype="subscriptions"] ytd-rich-section-renderer ytd-shelf-renderer #title-container h2 {
+  display: none !important;
 }
 
 /* 介紹其他頻道的區塊（頻道首頁的精選頻道、搜尋結果裡的頻道）：和影片清單一樣一列一個，

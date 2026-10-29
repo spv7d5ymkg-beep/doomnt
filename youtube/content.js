@@ -280,6 +280,12 @@
       }
       if (dur.textContent !== text) dur.textContent = text;
     }
+    // 首播的「通知我」等動作按鈕：原本另起一列、拉滿整列寬，搬到文字列最後（「即將直播」旁邊）
+    for (const actions of document.querySelectorAll("yt-lockup-view-model lockup-attachments-view-model")) {
+      if (!actions.querySelector("button")) continue;
+      const row = metaRow(actions.closest("yt-lockup-view-model"));
+      if (row && actions.parentElement !== row) row.append(actions);
+    }
   }
 
   // ---------- 主檢查 ----------
