@@ -337,19 +337,29 @@ html[dark] yt-lockup-view-model .ytFlexibleActionsViewModelAction button:hover {
   color: #f1f1f1 !important;
 }
 
-/* 訂閱內容第 1 頁最上方的「最新」標題：不顯示（右邊的「所有訂閱頻道」按鈕保留） */
-ytd-browse[page-subtype="subscriptions"] ytd-rich-section-renderer ytd-shelf-renderer #title-container h2 {
+/* 訂閱內容第 1 頁最上方的「最新」標題：不顯示；「所有訂閱頻道」按鈕保留，改成置中 */
+ytd-browse[page-subtype="subscriptions"] ytd-rich-section-renderer ytd-shelf-renderer #title-container h2,
+ytd-browse[page-subtype="subscriptions"] ytd-rich-section-renderer ytd-shelf-renderer #title-container #spacer {
   display: none !important;
+}
+ytd-browse[page-subtype="subscriptions"] ytd-rich-section-renderer ytd-shelf-renderer #title-container {
+  justify-content: center !important;
+}
+
+/* 頻道首頁的精選影片：和其他清單一樣佔滿整列，右邊的「⋮」選單才會靠右 */
+ytd-channel-featured-content-renderer yt-lockup-view-model {
+  width: 100% !important;
+  max-width: none !important;
 }
 
 /* 介紹其他頻道的區塊（頻道首頁的精選頻道、搜尋結果裡的頻道）：和影片清單一樣一列一個，
-   沒有頭像；左邊是頻道名稱和訂閱人數，訂閱按鈕放在右邊 */
+   左邊是頻道名稱和訂閱人數，訂閱按鈕緊接在名稱右邊 */
 ytd-grid-channel-renderer #channel {
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
-  justify-content: space-between !important;
-  gap: 16px;
+  justify-content: flex-start !important;
+  gap: 24px;
   width: auto !important;
   height: auto !important;
   padding: 10px 4px;
@@ -360,6 +370,9 @@ ytd-grid-channel-renderer #channel-info {
   align-items: flex-start !important;
   gap: 2px;
   height: auto !important;
+  /* 固定寬度，每一列的訂閱按鈕才會對齊成一直線 */
+  width: 280px !important;
+  flex: none !important;
 }
 ytd-grid-channel-renderer #title,
 ytd-grid-channel-renderer #thumbnail-attribution {
@@ -392,9 +405,9 @@ ytd-channel-renderer #info {
 }
 
 /* ========== 個人頭像：全站換成同一個通用灰色人像（右上角自己帳號的頭像除外） ========== */
-/* 頻道封面、頻道首頁的會員頭像、通知選單的圖片、搜尋右側資訊卡的大縮圖：直接不顯示 */
+/* 頻道封面（連同它佔的空間）、通知選單的圖片、搜尋右側資訊卡的大縮圖：直接不顯示 */
 yt-image-banner-view-model,
-ytd-recognition-shelf-renderer yt-img-shadow,
+#page-header-banner,
 ytd-watch-card-hero-video-renderer ytd-single-hero-image-renderer,
 ytd-notification-renderer yt-img-shadow {
   display: none !important;
@@ -406,7 +419,7 @@ html[dark] {
   --ytc-avatar: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><circle cx='20' cy='20' r='20' fill='%233f3f3f'/><circle cx='20' cy='16' r='7' fill='%238a8a8a'/><path d='M7 34c2-7 7.5-10 13-10s11 3 13 10a20 20 0 0 1-26 0z' fill='%238a8a8a'/></svg>");
 }
 /* 留言、社群貼文、播放頁的頻道、頻道頁與個人中心的大頭像、側邊欄、
-   「訂閱內容」懸浮選單、精選頻道、搜尋結果裡的頻道 */
+   「訂閱內容」懸浮選單、精選頻道、搜尋結果裡的頻道、頻道首頁的會員 */
 ytd-comment-view-model #author-thumbnail img,
 ytd-comment-renderer #author-thumbnail img,
 ytd-comment-simplebox-renderer #author-thumbnail img,
@@ -418,7 +431,8 @@ yt-page-header-view-model yt-decorated-avatar-view-model img,
 ytd-guide-entry-renderer yt-img-shadow img,
 yt-list-item-view-model avatar-view-model img,
 ytd-grid-channel-renderer yt-img-shadow img,
-ytd-channel-renderer #avatar img {
+ytd-channel-renderer #avatar img,
+ytd-recognition-shelf-renderer #avatars-container img {
   content: var(--ytc-avatar) !important;
   border-radius: 50%;
 }
