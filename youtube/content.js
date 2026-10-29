@@ -255,7 +255,18 @@
         if (suffix && el.dataset.ytcSuffix !== suffix) el.dataset.ytcSuffix = suffix;
       }
       const badge = item.querySelector("yt-thumbnail-badge-view-model, ytd-thumbnail-overlay-time-status-renderer");
-      const text = badge ? badge.textContent.trim().split("\n")[0].trim() : "";
+      let text = badge ? badge.textContent.trim().split("\n")[0].trim() : "";
+      // 滑鼠停在影片上時 YouTube 會開始預覽，縮圖上的長度暫時被換掉或拿掉，
+      // 所以記住這支影片上一次讀到的長度（換成別支影片時才更新），預覽期間照樣顯示
+      const key = item.querySelector("a[href]")?.getAttribute("href") || "";
+      if (/\d/.test(text) || item.dataset.ytcDurationFor !== key) {
+        if (text) {
+          item.dataset.ytcDuration = text;
+          item.dataset.ytcDurationFor = key;
+        }
+      } else {
+        text = item.dataset.ytcDuration || text;
+      }
       // 自訂標籤（不是 span）：YouTube 用 span:last-of-type 決定分隔符號，不會被打亂
       for (const old of item.querySelectorAll("ytc-duration")) if (old.parentElement !== row) old.remove();
       let dur = row.querySelector(":scope > ytc-duration");

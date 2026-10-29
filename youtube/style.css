@@ -259,7 +259,8 @@ yt-lockup-view-model yt-touch-feedback-shape {
   display: none !important;
 }
 
-/* 精選頻道：不顯示頭像，每個頻道一列（頻道名稱、訂閱人數；右邊是訂閱按鈕） */
+/* 介紹其他頻道的區塊（頻道首頁的精選頻道、搜尋結果裡的頻道）：和影片清單一樣一列一個，
+   沒有頭像；左邊是頻道名稱和訂閱人數，訂閱按鈕放在右邊 */
 ytd-grid-channel-renderer #channel {
   display: flex !important;
   flex-direction: row !important;
@@ -268,21 +269,43 @@ ytd-grid-channel-renderer #channel {
   gap: 16px;
   width: auto !important;
   height: auto !important;
-  padding: 12px 4px;
+  padding: 10px 4px;
 }
 ytd-grid-channel-renderer #channel-info {
   display: flex !important;
   flex-direction: column;
   align-items: flex-start !important;
+  gap: 2px;
   height: auto !important;
 }
 ytd-grid-channel-renderer #title,
 ytd-grid-channel-renderer #thumbnail-attribution {
   text-align: left !important;
   margin: 0 !important;
+  max-height: none !important;
 }
-ytd-grid-channel-renderer #subscribe {
+/* 頻道名稱和影片標題同樣大小 */
+ytd-grid-channel-renderer #title {
+  font-size: 1.6rem !important;
+  line-height: 2.2rem !important;
+  font-weight: 500 !important;
+}
+ytd-grid-channel-renderer #subscribe,
+ytd-grid-channel-renderer #subscribe ytd-subscribe-button-renderer {
   margin: 0 !important;
+  height: auto !important;
+}
+ytd-search ytd-channel-renderer {
+  padding: 10px 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+html[dark] ytd-search ytd-channel-renderer {
+  border-bottom-color: rgba(255, 255, 255, 0.15);
+}
+ytd-channel-renderer #info-section,
+ytd-channel-renderer #info {
+  height: auto !important;
+  min-height: 0 !important;
 }
 
 /* ========== 全站拿掉個人頭像與頻道封面（右上角自己帳號的頭像除外） ========== */
@@ -297,6 +320,8 @@ ytd-comment-simplebox-renderer #author-thumbnail,
 ytd-channel-renderer #avatar-section,
 ytd-guide-entry-renderer yt-img-shadow,
 ytd-recognition-shelf-renderer yt-img-shadow,
+yt-list-item-view-model avatar-view-model,
+ytd-watch-card-hero-video-renderer ytd-single-hero-image-renderer,
 ytd-notification-renderer yt-img-shadow {
   display: none !important;
 }
