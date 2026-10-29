@@ -262,9 +262,29 @@ yt-horizontal-list-renderer ytd-post-renderer #body {
   max-height: none !important;
 }
 
-/* 滑鼠移過影片時的反白：拿掉（它還比影片列大一圈，會蓋到上下兩支） */
+/* 滑鼠移過影片時不加任何顏色：
+   - 反白底色（它還比影片列大一圈，會蓋到上下兩支）
+   - 標題和資訊列的文字被改成縮圖的主色（YouTube 直接寫在 style 上，所以用 !important 蓋回原色）
+   - 播放清單頁、播放清單面板的淺灰底色（面板裡「正在播放」那支的底色保留） */
 yt-lockup-view-model yt-touch-feedback-shape {
   display: none !important;
+}
+.ytLockupMetadataViewModelTitle {
+  color: #0f0f0f !important;
+}
+.ytLockupMetadataViewModelMetadata {
+  color: #606060 !important;
+}
+html[dark] .ytLockupMetadataViewModelTitle {
+  color: #f1f1f1 !important;
+}
+html[dark] .ytLockupMetadataViewModelMetadata {
+  color: #aaa !important;
+}
+ytd-playlist-video-renderer:hover,
+ytd-playlist-panel-video-renderer:not([selected]):hover,
+ytd-video-renderer:hover {
+  background-color: transparent !important;
 }
 
 /* 介紹其他頻道的區塊（頻道首頁的精選頻道、搜尋結果裡的頻道）：和影片清單一樣一列一個，
