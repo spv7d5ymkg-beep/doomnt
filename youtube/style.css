@@ -294,6 +294,43 @@ ytd-video-renderer:hover {
   background-color: transparent !important;
 }
 
+/* 清單裡影片下方的動作按鈕（例如首播的「通知我」）：不要拉滿整列，
+   改成靠左的小外框按鈕，顏色和資訊列一樣低調 */
+yt-lockup-view-model .ytLockupAttachmentsViewModelAttachment {
+  margin-top: 8px !important;
+}
+yt-lockup-view-model yt-flexible-actions-view-model,
+yt-lockup-view-model .ytFlexibleActionsViewModelActionRow {
+  width: auto !important;
+  justify-content: flex-start !important;
+}
+yt-lockup-view-model .ytFlexibleActionsViewModelAction {
+  flex: none !important;
+  width: auto !important;
+}
+yt-lockup-view-model .ytFlexibleActionsViewModelAction button {
+  width: auto !important;
+  height: 26px !important;
+  padding: 0 12px !important;
+  background: transparent !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  color: #606060 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+yt-lockup-view-model .ytFlexibleActionsViewModelAction button:hover {
+  border-color: rgba(0, 0, 0, 0.3) !important;
+  color: #0f0f0f !important;
+}
+html[dark] yt-lockup-view-model .ytFlexibleActionsViewModelAction button {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #aaa !important;
+}
+html[dark] yt-lockup-view-model .ytFlexibleActionsViewModelAction button:hover {
+  border-color: rgba(255, 255, 255, 0.4) !important;
+  color: #f1f1f1 !important;
+}
+
 /* 介紹其他頻道的區塊（頻道首頁的精選頻道、搜尋結果裡的頻道）：和影片清單一樣一列一個，
    沒有頭像；左邊是頻道名稱和訂閱人數，訂閱按鈕放在右邊 */
 ytd-grid-channel-renderer #channel {
