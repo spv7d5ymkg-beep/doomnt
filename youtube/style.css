@@ -87,8 +87,8 @@ html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([fullscreen]):not([
   padding-right: 0 !important;
 }
 /* 一般模式：影片盡量放大，但限制高度，整支影片都能留在畫面內不用捲動
-   主欄（影片、說明、留言）的寬度照 16:9 影片算；播放器的長寬比跟著影片變（例如 4:3 的影片播放器也是 4:3），
-   所以播放器本身再依 content.js 量到的 --ytc-player-ratio 限寬、置中，說明和留言維持原本的寬度 */
+   主欄（影片、說明、留言）的寬度照 16:9 影片算。YouTube 的播放器高度跟著影片比例走
+   （4:3、直式影片會比畫面還高），所以播放器高度最多一個畫面高，畫面在裡面完整置中（不裁切） */
 html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([theater]):not([fullscreen]):not([live-chat-present]):not(:has(#panels > ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]:not([target-id="engagement-panel-ads"]))) #primary {
   flex: 1 1 auto !important;
   width: 100% !important;
@@ -96,10 +96,15 @@ html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([theater]):not([ful
   max-width: min(100%, calc((100vh - 56px - 48px) * 16 / 9)) !important;
 }
 html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([theater]):not([fullscreen]):not([live-chat-present]):not(:has(#panels > ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]:not([target-id="engagement-panel-ads"]))) #player-container-outer {
-  max-width: calc((100vh - 56px - 48px) * var(--ytc-player-ratio, 16 / 9)) !important;
+  max-width: none !important;
   min-width: 0 !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
+}
+html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([theater]):not([fullscreen]):not([live-chat-present]):not(:has(#panels > ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]:not([target-id="engagement-panel-ads"]))) #player-container-inner {
+  padding-top: min(calc(var(--ytd-watch-flexy-height-ratio, 9) / var(--ytd-watch-flexy-width-ratio, 16) * 100%), calc(100vh - 56px - 48px)) !important;
+}
+/* 影片畫面一律完整顯示、不裁切：YouTube 有時把直式影片的畫面設成橫的大小再「填滿裁切」，看起來像放大過頭 */
+#movie_player video.html5-main-video {
+  object-fit: contain !important;
 }
 /* 劇院模式：影片本來就滿版，讓下方的說明與留言也延伸到原本推薦欄的位置 */
 html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_][theater]:not([fullscreen]):not([live-chat-present]):not(:has(#panels > ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]:not([target-id="engagement-panel-ads"]))) #primary {
