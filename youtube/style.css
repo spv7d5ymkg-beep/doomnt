@@ -10,6 +10,8 @@ ytd-mini-guide-entry-renderer:has(a[href^="/shorts"]),
 ytd-rich-shelf-renderer[is-shorts],
 ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts]),
 ytd-reel-shelf-renderer,
+/* 頻道首頁的 Shorts 區塊：連外框一起藏，否則會剩一條和上下區塊分隔線疊在一起的線 */
+ytd-item-section-renderer:has(> #contents > ytd-reel-shelf-renderer),
 grid-shelf-view-model,
 ytd-rich-section-renderer:has(grid-shelf-view-model),
 
@@ -248,6 +250,10 @@ yt-horizontal-list-renderer #items {
 yt-horizontal-list-renderer #items > * {
   display: block !important;
   box-sizing: border-box;
+}
+/* 每個區塊最後一支影片不畫底線：區塊本身底下已經有分隔線 */
+yt-horizontal-list-renderer #items > :last-child {
+  border-bottom: none !important;
 }
 yt-horizontal-list-renderer #left-arrow,
 yt-horizontal-list-renderer #right-arrow {
