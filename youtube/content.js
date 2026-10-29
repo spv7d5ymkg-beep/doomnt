@@ -166,6 +166,25 @@
     return !!item.querySelector('a[href^="/shorts/"]');
   }
 
+  // 上傳時間只有「3 小時前」這種相對時間：換算成大約的上傳時刻，判斷是不是今天（今天 00:00 以後）。
+  // 認不出來的（即將直播、直播中）回傳 null，不影響分隔線。
+  const AGO_UNITS = {
+    秒: 1e3, 分鐘: 6e4, 小時: 36e5, 天: 864e5, 週: 6048e5, 個月: 2592e6, 年: 31536e6,
+    second: 1e3, minute: 6e4, hour: 36e5, day: 864e5, week: 6048e5, month: 2592e6, year: 31536e6,
+  };
+  const AGO_RE = /^(?:已串流\s*|Streamed\s+)?(\d+)\s*(秒|分鐘|小時|天|週|個月|年|second|minute|hour|day|week|month|year)s?\s*(?:前|ago)$/i;
+
+  function uploadedToday(item) {
+    for (const span of item.querySelectorAll("span")) {
+      if (span.children.length) continue;
+      const m = AGO_RE.exec(span.textContent.trim());
+      if (!m) continue;
+      const midnight = new Date().setHours(0, 0, 0, 0);
+      return Date.now() - Number(m[1]) * AGO_UNITS[m[2].toLowerCase()] >= midnight;
+    }
+    return null;
+  }
+
   function paginateSubscriptions() {
     const browse = document.querySelector('ytd-browse[page-subtype="subscriptions"]');
     const contents = browse && browse.querySelector("ytd-rich-grid-renderer > #contents");
@@ -173,15 +192,29 @@
     const start = subsPage * SUBS_PAGE_SIZE;
     const end = start + SUBS_PAGE_SIZE;
     let rank = 0;
+    // 今天和更早的影片之間畫一條紅線：標在第一支「更早」的影片上，最後一支今天的影片拿掉底線
+    let lastToday = null;
+    let firstEarlier = null;
     for (const el of contents.children) {
       const tag = el.tagName;
       if (tag === "YTD-RICH-ITEM-RENDERER") {
         if (isShortsItem(el)) continue;
         el.classList.toggle("ytc-off-page", rank < start || rank >= end);
         rank++;
+        if (firstEarlier) continue;
+        const today = uploadedToday(el);
+        if (today) lastToday = el;
+        else if (today === false && lastToday) firstEarlier = el;
       } else if (tag === "YTD-RICH-SECTION-RENDERER") {
         el.classList.toggle("ytc-off-page", subsPage > 0);
       }
+    }
+    for (const el of contents.querySelectorAll(":scope > .ytc-last-today, :scope > .ytc-first-earlier")) {
+      if (!firstEarlier || (el !== lastToday && el !== firstEarlier)) el.classList.remove("ytc-last-today", "ytc-first-earlier");
+    }
+    if (firstEarlier) {
+      lastToday.classList.add("ytc-last-today");
+      firstEarlier.classList.add("ytc-first-earlier");
     }
     const pageFull = rank >= end;
     // 這一頁滿了就藏起「載入更多」，還沒滿就讓它出現、繼續載入
