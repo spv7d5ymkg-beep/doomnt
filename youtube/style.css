@@ -568,10 +568,9 @@ html[dark] #byline-container > ytc-duration {
   align-items: center;
   justify-content: center;
   gap: 16px;
-  margin: 24px auto 48px;
-  padding-top: 24px;
+  /* 上方不畫分隔線：清單最後一列底下已經有一條 */
+  margin: 32px auto 48px;
   max-width: 600px;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
   font: 14px/1.4 "Roboto", "PingFang TC", "Noto Sans TC", sans-serif;
   color: #606060;
 }
@@ -605,7 +604,6 @@ html[dark] #byline-container > ytc-duration {
   cursor: default;
 }
 html[dark] #ytc-pager {
-  border-top-color: rgba(255, 255, 255, 0.2);
   color: #aaa;
 }
 html[dark] #ytc-pager button {
