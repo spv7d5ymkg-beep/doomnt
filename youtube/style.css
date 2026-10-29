@@ -67,12 +67,12 @@ ytd-watch-next-secondary-results-renderer {
 }
 
 /* 版面：推薦欄拿掉後，讓影片與留言填滿空間
-   只在兩欄版面套用；播放清單與直播（右側有清單或聊天室）時維持原樣 */
-html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([fullscreen]):not([live-chat-present]) #secondary {
+   只在兩欄版面套用；播放清單、直播（右側有清單或聊天室），以及右側打開了章節、逐字稿等面板時維持原樣 */
+html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([fullscreen]):not([live-chat-present]):not(:has(#panels > ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]:not([target-id="engagement-panel-ads"]))) #secondary {
   display: none !important;
 }
 /* 左右留白統一放在外框上，兩側永遠等寬 */
-html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([fullscreen]):not([live-chat-present]) #columns {
+html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([fullscreen]):not([live-chat-present]):not(:has(#panels > ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]:not([target-id="engagement-panel-ads"]))) #columns {
   max-width: none !important;
   justify-content: center !important;
   box-sizing: border-box !important;
@@ -80,25 +80,25 @@ html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([fullscreen]):not([
   padding-right: var(--ytd-margin-6x, 24px) !important;
 }
 /* 去掉 YouTube 原本「左邊 margin、右邊 padding」的不對稱留白 */
-html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([fullscreen]):not([live-chat-present]) #primary {
+html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([fullscreen]):not([live-chat-present]):not(:has(#panels > ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]:not([target-id="engagement-panel-ads"]))) #primary {
   margin-left: auto !important;
   margin-right: auto !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
 }
 /* 一般模式：影片盡量放大，但限制高度，整支影片都能留在畫面內不用捲動 */
-html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([theater]):not([fullscreen]):not([live-chat-present]) #primary {
+html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([theater]):not([fullscreen]):not([live-chat-present]):not(:has(#panels > ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]:not([target-id="engagement-panel-ads"]))) #primary {
   flex: 1 1 auto !important;
   width: 100% !important;
   min-width: 0 !important;
   max-width: min(100%, calc((100vh - 56px - 48px) * 16 / 9)) !important;
 }
-html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([theater]):not([fullscreen]):not([live-chat-present]) #player-container-outer {
+html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([theater]):not([fullscreen]):not([live-chat-present]):not(:has(#panels > ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]:not([target-id="engagement-panel-ads"]))) #player-container-outer {
   max-width: none !important;
   min-width: 0 !important;
 }
 /* 劇院模式：影片本來就滿版，讓下方的說明與留言也延伸到原本推薦欄的位置 */
-html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_][theater]:not([fullscreen]):not([live-chat-present]) #primary {
+html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_][theater]:not([fullscreen]):not([live-chat-present]):not(:has(#panels > ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]:not([target-id="engagement-panel-ads"]))) #primary {
   max-width: none !important;
 }
 
@@ -172,7 +172,7 @@ ytd-browse[page-subtype="subscriptions"] ytd-rich-section-renderer:has(ytd-rich-
 /* ========== 清單模式：全站拿掉縮圖，每支影片一列文字 ========== */
 /* 「標題；頻道 • 觀看次數 • 時間 • 長度」。長度原本印在縮圖上，由 content.js 搬到文字列最後 */
 
-/* 縮圖、播放清單封面、清單裡的頻道頭像、章節縮圖 */
+/* 縮圖、播放清單封面、清單裡的頻道頭像、章節縮圖（搜尋結果和播放頁的章節面板） */
 ytd-thumbnail,
 yt-thumbnail-view-model,
 yt-collection-thumbnail-view-model,
@@ -183,6 +183,7 @@ ytd-video-renderer ytd-expandable-metadata-renderer,
 ytd-playlist-header-renderer yt-img-shadow,
 ytd-hero-playlist-thumbnail-renderer,
 ytd-playlist-panel-video-renderer #thumbnail-container,
+ytd-macro-markers-list-item-renderer #thumbnail,
 yt-page-header-renderer yt-content-preview-image-view-model {
   display: none !important;
 }
