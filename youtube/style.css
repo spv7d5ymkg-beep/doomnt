@@ -86,12 +86,13 @@ html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([fullscreen]):not([
   padding-left: 0 !important;
   padding-right: 0 !important;
 }
-/* 一般模式：影片盡量放大，但限制高度，整支影片都能留在畫面內不用捲動 */
+/* 一般模式：影片盡量放大，但限制高度，整支影片都能留在畫面內不用捲動
+   播放器的長寬比跟著影片變（例如 4:3 的影片播放器也是 4:3），由 content.js 量好放在 --ytc-player-ratio */
 html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([theater]):not([fullscreen]):not([live-chat-present]):not(:has(#panels > ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]:not([target-id="engagement-panel-ads"]))) #primary {
   flex: 1 1 auto !important;
   width: 100% !important;
   min-width: 0 !important;
-  max-width: min(100%, calc((100vh - 56px - 48px) * 16 / 9)) !important;
+  max-width: min(100%, calc((100vh - 56px - 48px) * var(--ytc-player-ratio, 16 / 9))) !important;
 }
 html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_]:not([theater]):not([fullscreen]):not([live-chat-present]):not(:has(#panels > ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]:not([target-id="engagement-panel-ads"]))) #player-container-outer {
   max-width: none !important;

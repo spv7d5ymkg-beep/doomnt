@@ -332,6 +332,7 @@
   // 推薦欄拿掉後，YouTube 有時仍用「有推薦欄」時的寬度初始化影片畫面：外框大小是對的，
   // 影片畫面卻小一號（例如 674 寬放在 1064 寬的外框裡），半秒多後才自己長回來，看起來像縮了一下。
   // 影片畫面大小一改變就檢查；比外框小一圈（寬、高都對不上，直式影片只有寬度不同不算）就立刻請播放器重算。
+  // 同時記下播放器的長寬比（見下方），換成不同比例的影片時也請播放器重算。
   let watchedVideo = null;
   let lastVideoFix = 0;
   const videoResize = new ResizeObserver(() => fixVideoSize());
@@ -346,8 +347,18 @@
     }
     const p = player.getBoundingClientRect();
     const v = video.getBoundingClientRect();
-    if (!v.width || Math.abs(v.width - p.width) < 2 || Math.abs(v.height - p.height) < 2) return;
-    if (Date.now() - lastVideoFix < 200) return;
+    // 播放器的長寬比：style.css 用它限制播放器寬度，讓整支影片（不只 16:9 的）都留在畫面內
+    // （全螢幕與劇院模式的播放器比例跟著螢幕走，不算）
+    const flexy = player.closest("ytd-watch-flexy");
+    const normal = !document.fullscreenElement && !flexy.hasAttribute("theater") && !flexy.hasAttribute("fullscreen");
+    const ratio = normal && p.height ? Math.round((p.width / p.height) * 1000) / 1000 : 0;
+    let stale = false;
+    if (ratio && String(ratio) !== document.documentElement.style.getPropertyValue("--ytc-player-ratio")) {
+      document.documentElement.style.setProperty("--ytc-player-ratio", String(ratio));
+      stale = true;
+    }
+    if (v.width && Math.abs(v.width - p.width) >= 2 && Math.abs(v.height - p.height) >= 2) stale = true;
+    if (!stale || Date.now() - lastVideoFix < 200) return;
     lastVideoFix = Date.now();
     window.dispatchEvent(new Event("resize"));
   }
