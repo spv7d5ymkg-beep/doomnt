@@ -100,6 +100,13 @@ html:not(.ytc-playlist) ytd-watch-flexy[is-two-columns_][theater]:not([fullscree
   max-width: none !important;
 }
 
+/* 氛圍模式（深色模式下影片後面那圈依畫面變色的光暈）：不顯示，省下持續重畫的負擔 */
+#cinematics,
+#cinematics-container,
+#cinematics-full-bleed-container {
+  display: none !important;
+}
+
 /* 播放器內：片尾推薦牆、片尾卡片、自動播放倒數、全螢幕往下滑的推薦格 */
 .ytp-endscreen-content,
 .videowall-endscreen,
