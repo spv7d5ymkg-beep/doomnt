@@ -251,7 +251,15 @@ yt-horizontal-list-renderer #right-arrow {
 yt-horizontal-list-renderer #items > ytd-post-renderer {
   width: 100% !important;
   max-width: none !important;
+  height: auto !important;
   margin: 0 0 16px !important;
+  padding-bottom: 8px !important;
+}
+/* YouTube 把橫排裡的貼文固定成同一個高度，投票或圖片比較高的貼文會超出，按鈕壓到外框；改成自動高度 */
+yt-horizontal-list-renderer ytd-post-renderer #dismissible,
+yt-horizontal-list-renderer ytd-post-renderer #body {
+  height: auto !important;
+  max-height: none !important;
 }
 
 /* 滑鼠移過影片時的反白：拿掉（它還比影片列大一圈，會蓋到上下兩支） */
@@ -339,6 +347,33 @@ ytd-channel-renderer #avatar img {
   content: var(--ytc-avatar) !important;
   border-radius: 50%;
 }
+/* 影片清單：頻道名稱左邊放一個小的通用頭像（訂閱內容、觀看記錄、搜尋結果、播放清單、播放清單面板）
+   新版清單裡頻道名稱是文字列的第一段（觀看次數和時間都帶 aria-label）；播放清單除外 */
+yt-lockup-view-model:not(:has(yt-collection-thumbnail-view-model)) .ytContentMetadataViewModelMetadataRow > .ytContentMetadataViewModelMetadataText:first-child:not([aria-label]),
+ytd-video-renderer #channel-info,
+ytd-playlist-video-renderer #byline-container,
+ytd-playlist-panel-video-renderer #byline-container {
+  display: flex !important;
+  align-items: center !important;
+}
+yt-lockup-view-model:not(:has(yt-collection-thumbnail-view-model)) .ytContentMetadataViewModelMetadataRow > .ytContentMetadataViewModelMetadataText:first-child:not([aria-label])::before,
+ytd-video-renderer #channel-info::before,
+ytd-playlist-video-renderer #byline-container::before,
+ytd-playlist-panel-video-renderer #byline-container::before {
+  content: "";
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--ytc-avatar) center / cover no-repeat;
+}
+ytd-playlist-video-renderer #byline-container::before,
+ytd-playlist-panel-video-renderer #byline-container::before {
+  width: 16px;
+  height: 16px;
+}
+
 /* 精選頻道：小頭像放在頻道名稱左邊，維持一列一個的緊湊清單 */
 ytd-grid-channel-renderer #channel-info {
   display: grid !important;
