@@ -172,17 +172,51 @@
     秒: 1e3, 分鐘: 6e4, 小時: 36e5, 天: 864e5, 週: 6048e5, 個月: 2592e6, 年: 31536e6,
     second: 1e3, minute: 6e4, hour: 36e5, day: 864e5, week: 6048e5, month: 2592e6, year: 31536e6,
   };
-  const AGO_RE = /^(?:已串流\s*|Streamed\s+)?(\d+)\s*(秒|分鐘|小時|天|週|個月|年|second|minute|hour|day|week|month|year)s?\s*(?:前|ago)$/i;
+  // 前面可能有「已串流」「直播時間：」「Streamed」等字
+  const AGO_RE = /^\D{0,12}?(\d+)\s*(秒|分鐘|小時|天|週|個月|年|second|minute|hour|day|week|month|year)s?\s*(?:前|ago)$/i;
 
   function uploadedToday(item) {
     for (const span of item.querySelectorAll("span")) {
       if (span.children.length) continue;
-      const m = AGO_RE.exec(span.textContent.trim());
+      const text = span.textContent.trim();
+      const m = AGO_RE.exec(text);
       if (!m) continue;
-      const midnight = new Date().setHours(0, 0, 0, 0);
-      return Date.now() - Number(m[1]) * AGO_UNITS[m[2].toLowerCase()] >= midnight;
+      // 這段文字是 YouTube 產生畫面當下的相對時間，之後不會更新（分頁開著跨過午夜、或回到快取的訂閱頁時），
+      // 所以從第一次看到這段文字的時刻往回算，不是從現在
+      if (item.dataset.ytcAgo !== text) {
+        item.dataset.ytcAgo = text;
+        item.dataset.ytcAgoSeen = Date.now();
+      }
+      // 「2 小時前」是 2～3 小時之間（YouTube 無條件捨去），取中間值
+      const unit = AGO_UNITS[m[2].toLowerCase()];
+      const uploaded = Number(item.dataset.ytcAgoSeen) - (Number(m[1]) + 0.5) * unit;
+      return uploaded >= new Date().setHours(0, 0, 0, 0);
     }
     return null;
+  }
+
+  // 訂閱內容大致照時間排，但直播、首播有時會排在比較前面。
+  // 找一個位置，讓線上「更早」的影片加上線下「今天」的影片最少（排錯的幾支不會把線拉走）。
+  function splitTodayEarlier(items) {
+    const flags = items.map(uploadedToday);
+    let after = flags.filter((f) => f === true).length; // 線下（含這一支以後）今天的影片數
+    let before = 0; // 線上「更早」的影片數
+    let best = null;
+    let bestErr = Infinity;
+    let seenToday = false;
+    for (let i = 0; i < items.length; i++) {
+      if (seenToday && flags[i] === false && before + after < bestErr) {
+        bestErr = before + after;
+        best = i;
+      }
+      if (flags[i] === true) {
+        seenToday = true;
+        after--;
+      } else if (flags[i] === false) {
+        before++;
+      }
+    }
+    return best === null ? [null, null] : [items[best - 1], items[best]];
   }
 
   function paginateSubscriptions() {
@@ -192,23 +226,20 @@
     const start = subsPage * SUBS_PAGE_SIZE;
     const end = start + SUBS_PAGE_SIZE;
     let rank = 0;
-    // 今天和更早的影片之間畫一條紅線：標在第一支「更早」的影片上，最後一支今天的影片拿掉底線
-    let lastToday = null;
-    let firstEarlier = null;
+    const videos = [];
     for (const el of contents.children) {
       const tag = el.tagName;
       if (tag === "YTD-RICH-ITEM-RENDERER") {
         if (isShortsItem(el)) continue;
         el.classList.toggle("ytc-off-page", rank < start || rank >= end);
         rank++;
-        if (firstEarlier) continue;
-        const today = uploadedToday(el);
-        if (today) lastToday = el;
-        else if (today === false && lastToday) firstEarlier = el;
+        videos.push(el);
       } else if (tag === "YTD-RICH-SECTION-RENDERER") {
         el.classList.toggle("ytc-off-page", subsPage > 0);
       }
     }
+    // 今天和更早的影片之間畫一條紅線：標在線下第一支影片上，線上那支影片拿掉底線
+    const [lastToday, firstEarlier] = splitTodayEarlier(videos);
     for (const el of contents.querySelectorAll(":scope > .ytc-last-today, :scope > .ytc-first-earlier")) {
       if (!firstEarlier || (el !== lastToday && el !== firstEarlier)) el.classList.remove("ytc-last-today", "ytc-first-earlier");
     }
