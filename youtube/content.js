@@ -76,6 +76,20 @@
     (btn.closest("button") || btn).click();
   }
 
+  // ---------- 播放頁：留言一律照「最新」排序 ----------
+  // 預設的「熱門」只顯示 YouTube 挑過的精選留言，捲到一半就沒了；「最新」才會顯示全部留言。
+  // 換影片時 YouTube 會把排序重設回「熱門」，所以每次檢查都確認一次（不只切一次：換影片的瞬間舊的排序選單還在）。
+  let lastSortClick = 0;
+  function sortCommentsNewest() {
+    const options = document.querySelectorAll(
+      "ytd-watch-flexy:not([hidden]) ytd-comments #sort-menu a.yt-dropdown-menu"
+    );
+    if (options.length < 2 || options[1].classList.contains("iron-selected")) return;
+    if (Date.now() - lastSortClick < 1000) return;
+    lastSortClick = Date.now();
+    options[1].click();
+  }
+
   // ---------- 播放頁：留言卡在上一支影片時自動修正 ----------
   // 換影片後，YouTube 偶爾沒有重新抓留言，留言區還是上一支影片的。
   // 每則留言的時間連結都帶著所屬影片的 ID（?v=…&lc=…），用它判斷留言是不是這支影片的：
@@ -374,6 +388,7 @@
       refitPlayer();
       fixVideoSize();
       checkStaleComments();
+      sortCommentsNewest();
     } else {
       staleSince = 0;
     }
