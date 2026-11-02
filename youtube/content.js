@@ -358,6 +358,21 @@
       }
       if (dur.textContent !== text) dur.textContent = text;
     }
+    // 頻道頭像：原本在標題左邊、跟縮圖一樣大，搬到頻道名稱前面當小頭像。
+    // 頭像藏著的時候 YouTube 不會載入圖片，所以要真的搬過去顯示，不能只用 CSS 借它的圖。
+    for (const lockup of document.querySelectorAll("yt-lockup-view-model")) {
+      const avatar = lockup.querySelector(".ytLockupMetadataViewModelAvatar");
+      if (!avatar || lockup.querySelector("yt-collection-thumbnail-view-model")) continue;
+      const name = lockup.querySelector(
+        ".ytContentMetadataViewModelMetadataRow > .ytContentMetadataViewModelMetadataText:first-child:not([aria-label])"
+      );
+      if (!name) continue;
+      for (const old of name.querySelectorAll(":scope > .ytc-avatar")) if (old !== avatar) old.remove();
+      if (avatar.parentElement !== name) {
+        avatar.classList.add("ytc-avatar");
+        name.prepend(avatar);
+      }
+    }
     // 首播的「通知我」等動作按鈕：原本另起一列、拉滿整列寬，搬到文字列最後（「即將直播」旁邊）
     for (const actions of document.querySelectorAll("yt-lockup-view-model lockup-attachments-view-model")) {
       if (!actions.querySelector("button")) continue;
