@@ -1,8 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Doomn't",
-  "version": "2.17.0",
-  "description": "不再無限滑：隱藏 YouTube Shorts 與推薦影片、Instagram Reels / 探索 / 建議貼文，只留下你自己選擇要看的內容。",
+  "version": "2.18.0",
+  "description": "不再無限滑：隱藏 YouTube Shorts 與推薦影片、Instagram Reels / 探索 / 建議貼文，只留下你自己選擇要看的內容；4chan 擋掉成人看板。",
+  "permissions": [
+    "storage"
+  ],
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -15,7 +18,8 @@
       "32": "icons/icon-32.png",
       "48": "icons/icon-48.png",
       "128": "icons/icon-128.png"
-    }
+    },
+    "default_popup": "popup/popup.html"
   },
   "content_scripts": [
     {
@@ -39,6 +43,20 @@
       ],
       "js": [
         "instagram/content.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://4chan.org/*",
+        "https://*.4chan.org/*",
+        "https://*.4channel.org/*"
+      ],
+      "css": [
+        "fourchan/style.css"
+      ],
+      "js": [
+        "fourchan/content.js"
       ],
       "run_at": "document_start"
     }

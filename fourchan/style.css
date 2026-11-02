@@ -1,0 +1,11 @@
+/* content.js 在開關開啟時加上 html.doomnt-4chan，關掉時拿掉，所以所有規則都掛在它底下 */
+
+/* 擋掉的看板（首頁分類、看板列） */
+html.doomnt-4chan .doomnt-hide {
+  display: none !important;
+}
+
+/* 熱門討論串的「options」：固定只看 SFW，不給切換 */
+html.doomnt-4chan #opts-btn {
+  display: none !important;
+}
