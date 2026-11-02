@@ -317,7 +317,8 @@
   function viewsSuffix(el) {
     const label = el.getAttribute("aria-label") || "";
     if (/觀看/.test(label)) return " 次觀看";
-    if (/views?\b/i.test(label)) return " views";
+    // 要有數字，免得「PewView」這種頻道名稱也被當成觀看次數
+    if (/\d.*\bviews?\b/i.test(label)) return " views";
     if (el.children.length || !VIEWS_RE.test(el.textContent.trim())) return "";
     return /^zh/i.test(document.documentElement.lang) ? " 次觀看" : " views";
   }
@@ -327,7 +328,7 @@
       const row = metaRow(item);
       if (!row) continue;
       for (const el of row.querySelectorAll("span, [aria-label]")) {
-        if (el.tagName === "YTC-DURATION") continue;
+        if (el.tagName === "YTC-DURATION" || el.closest(".ytc-avatar")) continue;
         const suffix = viewsSuffix(el);
         if (el.classList.contains("ytc-views") !== !!suffix) el.classList.toggle("ytc-views", !!suffix);
         if (suffix && el.dataset.ytcSuffix !== suffix) el.dataset.ytcSuffix = suffix;
