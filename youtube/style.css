@@ -27,6 +27,26 @@ ytm-shorts-lockup-view-model-v2,
 yt-tab-shape[tab-title="Shorts"] {
   display: none !important;
 }
+/* 分頁底下的黑線：YouTube 算位置時把藏起來的 Shorts 分頁也算進去，Shorts 後面的分頁會偏一格間距；
+   改成直接畫在選到的分頁底下 */
+yt-tab-group-shape .tabGroupShapeSlider {
+  display: none !important;
+}
+yt-tab-group-shape yt-tab-shape[aria-selected="true"] {
+  position: relative;
+}
+yt-tab-group-shape yt-tab-shape[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  height: 2px;
+  background: #0f0f0f;
+}
+html[dark] yt-tab-group-shape yt-tab-shape[aria-selected="true"]::after {
+  background: #f1f1f1;
+}
 
 /* ========== 首頁：整頁推薦清空，只留上方搜尋列 ========== */
 /* 把提示文字掛在首頁元件本身：YouTube 切換頁面時會一起顯示或隱藏它，
