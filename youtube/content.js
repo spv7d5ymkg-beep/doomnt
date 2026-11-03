@@ -328,6 +328,8 @@
   }
 
   function viewsSuffix(el) {
+    // 文字本身已經寫了（直播的「44 人正在觀看」）就不用再加
+    if (/觀看|\bviews?\b|\bwatching\b/i.test(el.textContent)) return "";
     const label = el.getAttribute("aria-label") || "";
     if (/觀看/.test(label)) return " 次觀看";
     // 要有數字，免得「PewView」這種頻道名稱也被當成觀看次數

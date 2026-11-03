@@ -525,6 +525,16 @@ ytd-video-renderer #channel-info #channel-thumbnail * {
   margin: 0 !important;
   padding: 0 !important;
 }
+/* 正在直播的頻道：頭像底下的「直播」標籤縮成 18px 會擠成一團，拿掉；改在頭像外面圍一圈紅色 */
+.ytc-avatar .ytSpecAvatarShapeLiveBadge,
+ytd-video-renderer #channel-thumbnail .ytSpecAvatarShapeLiveBadge {
+  display: none !important;
+}
+.ytc-avatar .ytSpecAvatarShapeLiveRing img,
+ytd-video-renderer #channel-thumbnail .ytSpecAvatarShapeLiveRing img {
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px #ff0033;
+}
 
 /* 精選頻道：小頭像放在頻道名稱左邊，維持一列一個的緊湊清單 */
 ytd-grid-channel-renderer #channel-info {
