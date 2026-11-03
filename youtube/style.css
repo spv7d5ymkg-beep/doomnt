@@ -392,6 +392,32 @@ ytd-browse[page-subtype="subscriptions"] ytd-rich-section-renderer ytd-shelf-ren
   justify-content: center !important;
 }
 
+/* 滑鼠停在影片上自動播放的預覽：縮圖藏起來了，預覽只剩一條灰色進度條浮在清單上 */
+ytd-video-preview,
+#video-preview {
+  display: none !important;
+}
+
+/* 頻道頁頂部（橫幅、頻道資訊、分頁列）：原本固定在上方，往下捲時一層層收合、
+   捲太快會和下面的內容疊在一起；改成跟著頁面一起捲走 */
+ytd-tabbed-page-header tp-yt-app-header#header {
+  position: relative !important;
+  /* 固定時 YouTube 在 style 上寫了 left／width（避開左邊的導覽列），一般排版下會再往右推一次 */
+  left: auto !important;
+  right: auto !important;
+  width: auto !important;
+  margin-top: 0 !important;
+  transform: none !important;
+}
+ytd-tabbed-page-header tp-yt-app-header#header #backgroundFrontLayer,
+ytd-tabbed-page-header tp-yt-app-header#header #backgroundRearLayer {
+  transform: none !important;
+}
+/* 頂部固定時 YouTube 在內容上方留了同樣高度的空白（寫在 style 上） */
+ytd-tabbed-page-header tp-yt-app-header-layout #contentContainer {
+  padding-top: 0 !important;
+}
+
 /* 頻道首頁的精選影片：和其他清單一樣佔滿整列，右邊的「⋮」選單才會靠右 */
 ytd-channel-featured-content-renderer yt-lockup-view-model {
   width: 100% !important;
