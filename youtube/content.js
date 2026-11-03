@@ -79,8 +79,21 @@
   // ---------- 播放頁：留言一律照「最新」排序 ----------
   // 預設的「熱門」只顯示 YouTube 挑過的精選留言，捲到一半就沒了；「最新」才會顯示全部留言。
   // 換影片時 YouTube 會把排序重設回「熱門」，所以每次檢查都確認一次（不只切一次：換影片的瞬間舊的排序選單還在）。
+  // 自己在排序選單點過的那支影片就照自己選的，不再切回「最新」；換下一支影片再恢復預設
   let lastSortClick = 0;
+  let userSortedVideo = null;
+  const currentVideoId = () => new URLSearchParams(location.search).get("v");
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (e.isTrusted && e.target.closest && e.target.closest("ytd-comments #sort-menu a.yt-dropdown-menu")) {
+        userSortedVideo = currentVideoId();
+      }
+    },
+    true
+  );
   function sortCommentsNewest() {
+    if (userSortedVideo && userSortedVideo === currentVideoId()) return;
     const options = document.querySelectorAll(
       "ytd-watch-flexy:not([hidden]) ytd-comments #sort-menu a.yt-dropdown-menu"
     );
