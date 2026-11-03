@@ -343,7 +343,7 @@
       const row = metaRow(item);
       if (!row) continue;
       for (const el of row.querySelectorAll("span, [aria-label]")) {
-        if (el.tagName === "YTC-DURATION" || el.closest(".ytc-avatar")) continue;
+        if (el.closest("ytc-duration, .ytc-avatar")) continue;
         const suffix = viewsSuffix(el);
         if (el.classList.contains("ytc-views") !== !!suffix) el.classList.toggle("ytc-views", !!suffix);
         if (suffix && el.dataset.ytcSuffix !== suffix) el.dataset.ytcSuffix = suffix;
@@ -372,7 +372,17 @@
         dur = document.createElement("ytc-duration");
         row.append(dur);
       }
-      if (dur.textContent !== text) dur.textContent = text;
+      // 正在直播：長度的位置寫的是「直播」，包一層紅底標籤
+      const live = /^(直播|LIVE)$/i.test(text);
+      if (dur.textContent !== text || !!dur.querySelector(".ytc-live") !== live) {
+        dur.textContent = text;
+        if (live) {
+          const tag = document.createElement("span");
+          tag.className = "ytc-live";
+          tag.textContent = text;
+          dur.replaceChildren(tag);
+        }
+      }
     }
     // 頻道頭像：原本在標題左邊、跟縮圖一樣大，搬到頻道名稱前面當小頭像。
     // 頭像藏著的時候 YouTube 不會載入圖片，所以要真的搬過去顯示，不能只用 CSS 借它的圖。
