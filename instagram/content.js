@@ -188,34 +188,40 @@
     return [...document.querySelectorAll("main article")].find((a) => postId(a) === id) || null;
   }
 
-  // 打開貼文：背景動態捲到那一篇（Instagram 只留畫面附近的貼文），再按它的「回應」按鈕
+  // 背景動態捲到某一篇（Instagram 只留畫面附近的貼文），回傳那一篇的 <article>，找不到回傳 null
+  async function scrollToPost(p) {
+    let art = findArticle(p.id);
+    if (!art && p.y !== undefined) {
+      window.scrollTo(0, Math.max(0, p.y - 100));
+      await sleep(150);
+      art = findArticle(p.id);
+    }
+    // 還是不在：看頁面上的貼文排在它前面還是後面，往那個方向找
+    const idx = posts.indexOf(p);
+    for (let i = 0; !art && i < 60 && !stopLoading; i++) {
+      const shown = [...document.querySelectorAll("main article")]
+        .map((a) => posts.indexOf(postById.get(postId(a))))
+        .filter((x) => x >= 0);
+      const down = !shown.length || Math.max(...shown) < idx;
+      window.scrollBy(0, (down ? 1 : -1) * Math.round(window.innerHeight * 0.8));
+      await sleep(120);
+      art = findArticle(p.id);
+    }
+    return art;
+  }
+
+  // 打開貼文：背景動態捲到那一篇，按它的「回應」按鈕
   async function openPost(id) {
     const p = postById.get(id);
     if (!p || stopLoading) return;
-    // 背景還在載入下一頁：先停下來（最多等一下子），再去找這一篇
+    // 背景還在載入（或補圖片）：先停下來（最多等一下子），再去找這一篇
     stopLoading = true;
     for (let i = 0; busy && i < 20; i++) await sleep(50);
     stopLoading = false;
     if (busy) return;
     busy = true;
     try {
-      let art = findArticle(id);
-      if (!art && p.y !== undefined) {
-        window.scrollTo(0, Math.max(0, p.y - 100));
-        await sleep(150);
-        art = findArticle(id);
-      }
-      // 還是不在：看頁面上的貼文排在它前面還是後面，往那個方向找
-      const idx = posts.indexOf(p);
-      for (let i = 0; !art && i < 60; i++) {
-        const shown = [...document.querySelectorAll("main article")]
-          .map((a) => posts.indexOf(postById.get(postId(a))))
-          .filter((x) => x >= 0);
-        const down = !shown.length || Math.max(...shown) < idx;
-        window.scrollBy(0, (down ? 1 : -1) * Math.round(window.innerHeight * 0.8));
-        await sleep(120);
-        art = findArticle(id);
-      }
+      const art = await scrollToPost(p);
       collect();
       const icon =
         art &&
@@ -226,8 +232,26 @@
       if (btn) {
         openedAt = Date.now();
         btn.click();
+      } else location.assign("/p/" + id + "/"); // 關閉留言的貼文沒有「回應」按鈕：改開貼文頁
+    } finally {
+      busy = false;
+    }
+  }
+
+  // 補圖片：背景載入捲得快，有些貼文還沒載入圖片就被 Instagram 移除了，格子會是空的。
+  // 目前這一頁有空格子時，把背景動態捲回那幾篇，等圖片出現再記下來（每篇最多試 3 次）
+  async function fillMissingImages(items) {
+    if (busy) return;
+    busy = true;
+    try {
+      for (const p of items) {
+        if (p.img || stopLoading || (p.imgTries || 0) >= 3) continue;
+        p.imgTries = (p.imgTries || 0) + 1;
+        const art = await scrollToPost(p);
+        for (let i = 0; art && i < 15 && art.isConnected && !coverImage(art) && !stopLoading; i++) await sleep(100);
+        collect();
+        renderGrid();
       }
-      else location.assign("/p/" + id + "/"); // 關閉留言的貼文沒有「回應」按鈕：改開貼文頁
     } finally {
       busy = false;
     }
@@ -358,8 +382,15 @@
     pauseHiddenVideos();
     collect();
     renderGrid();
+    if (busy) return;
+    // 本頁有還沒有圖片的格子：先補圖片
+    const items = posts.slice(feedPage * PAGE_SIZE, (feedPage + 1) * PAGE_SIZE);
+    if (items.some((p) => !p.img && (p.imgTries || 0) < 3)) {
+      fillMissingImages(items);
+      return;
+    }
     // 本頁和下一頁還沒載滿：在背景繼續捲動載入
-    if (!busy && !feedEnded() && posts.length < (feedPage + 1 + PREFETCH_PAGES) * PAGE_SIZE) {
+    if (!feedEnded() && posts.length < (feedPage + 1 + PREFETCH_PAGES) * PAGE_SIZE) {
       loadUntil((feedPage + 1 + PREFETCH_PAGES) * PAGE_SIZE);
     }
   }
