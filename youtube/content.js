@@ -182,9 +182,12 @@
   const AGO_UNITS = {
     秒: 1e3, 分鐘: 6e4, 小時: 36e5, 天: 864e5, 週: 6048e5, 個月: 2592e6, 年: 31536e6,
     second: 1e3, minute: 6e4, hour: 36e5, day: 864e5, week: 6048e5, month: 2592e6, year: 31536e6,
+    // 英文介面有時用縮寫（「1h ago」「3d ago」「2mo ago」）
+    s: 1e3, sec: 1e3, m: 6e4, min: 6e4, h: 36e5, hr: 36e5, d: 864e5, w: 6048e5, wk: 6048e5, mo: 2592e6, y: 31536e6, yr: 31536e6,
   };
-  // 前面可能有「已串流」「直播時間：」「Streamed」等字
-  const AGO_RE = /^\D{0,12}?(\d+)\s*(秒|分鐘|小時|天|週|個月|年|second|minute|hour|day|week|month|year)s?\s*(?:前|ago)$/i;
+  // 前面可能有「已串流」「直播時間：」「Streamed」等字；單位後面可能有複數的 s（hours、hrs）
+  const AGO_RE =
+    /^\D{0,12}?(\d+)\s*(秒|分鐘|小時|天|週|個月|年|second|minute|hour|day|week|month|year|sec|min|hr|wk|mo|yr|s|m|h|d|w|y)s?\s*(?:前|ago)$/i;
 
   function uploadedToday(item) {
     for (const span of item.querySelectorAll("span")) {
