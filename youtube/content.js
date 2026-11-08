@@ -267,8 +267,11 @@
     }
     // 今天和更早的影片之間畫一條紅線：標在線下第一支影片上，線上那支影片拿掉底線
     const [lastToday, firstEarlier] = splitTodayEarlier(videos);
+    // 兩個標記分開更新：載入更多影片後線可能往下移一支，原本線下的那支變成線上那支，
+    // 它舊的「線下」標記一定要拿掉，否則會出現兩條紅線
     for (const el of contents.querySelectorAll(":scope > .ytc-last-today, :scope > .ytc-first-earlier")) {
-      if (!firstEarlier || (el !== lastToday && el !== firstEarlier)) el.classList.remove("ytc-last-today", "ytc-first-earlier");
+      if (el !== lastToday) el.classList.remove("ytc-last-today");
+      if (el !== firstEarlier) el.classList.remove("ytc-first-earlier");
     }
     if (firstEarlier) {
       lastToday.classList.add("ytc-last-today");
