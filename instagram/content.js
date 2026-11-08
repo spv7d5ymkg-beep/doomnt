@@ -69,6 +69,7 @@
   let posts = []; // 依第一次出現順序：{ id, user, img, likes, comments, video, carousel, time, y }
   let postById = new Map();
   let busy = false; // 背景捲動中（載入或打開貼文）
+  let stopLoading = false; // 要打開貼文：中斷背景載入
   let gridSig = ""; // 上次畫的內容，沒變就不重畫
   let openedAt = 0; // 最近一次從格狀版面打開貼文的時間
   let dialogSeenAt = 0; // 最近一次看到貼文對話框的時間
@@ -169,7 +170,7 @@
     if (busy) return;
     busy = true;
     try {
-      for (let i = 0; i < 250 && posts.length < n; i++) {
+      for (let i = 0; i < 250 && posts.length < n && !stopLoading; i++) {
         collect();
         if (posts.length >= n || feedEnded()) break;
         window.scrollBy(0, Math.round(window.innerHeight * 0.8));
@@ -190,7 +191,12 @@
   // 打開貼文：背景動態捲到那一篇（Instagram 只留畫面附近的貼文），再按它的「回應」按鈕
   async function openPost(id) {
     const p = postById.get(id);
-    if (!p || busy) return;
+    if (!p || stopLoading) return;
+    // 背景還在載入下一頁：先停下來（最多等一下子），再去找這一篇
+    stopLoading = true;
+    for (let i = 0; busy && i < 20; i++) await sleep(50);
+    stopLoading = false;
+    if (busy) return;
     busy = true;
     try {
       let art = findArticle(id);
