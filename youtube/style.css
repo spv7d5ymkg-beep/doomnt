@@ -74,6 +74,9 @@ ytd-browse[page-subtype="home"]:not([hidden])::after {
   font-size: 14px;
   color: #606060;
 }
+html[data-doomnt-lang="en"] ytd-browse[page-subtype="home"]:not([hidden])::after {
+  content: "Home recommendations are off. Use the search bar above, or open Subscriptions from the sidebar.";
+}
 html[dark] ytd-browse[page-subtype="home"]:not([hidden])::after {
   color: #aaa;
 }
@@ -221,6 +224,11 @@ ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer.ytc-first-earlie
 }
 html[dark] ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer.ytc-first-earlier::before {
   color: #aaa;
+}
+/* 英文介面（common/i18n.js 在 <html> 上標 data-doomnt-lang） */
+html[data-doomnt-lang="en"] ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer.ytc-first-earlier::before {
+  content: "EARLIER";
+  letter-spacing: 1.5px;
 }
 
 /* 訂閱內容：「最相關」區塊（第 1 頁中間那排精選影片）整個不顯示 */

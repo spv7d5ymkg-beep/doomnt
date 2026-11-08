@@ -1,4 +1,10 @@
 (function () {
+  const { t } = doomntI18n; // 介面語言（common/i18n.js）
+  // 只在文字不同時才改：每次都改會觸發 MutationObserver，又跑一次檢查
+  const setText = (el, s) => {
+    if (el.textContent !== s) el.textContent = s;
+  };
+
   // ---------- 路徑規則 ----------
   // 單支 Reels（/reels/ID/、/reel/ID/）→ 改用單篇貼文頁 /p/ID/ 開啟：可以看，但不能往下滑
   const SINGLE_REEL_RE = /^\/reels?\/([A-Za-z0-9_-]+)\/?$/;
@@ -276,8 +282,8 @@
     grid.tabIndex = -1; // 讓空白鍵、方向鍵捲動格狀版面
     grid.innerHTML =
       '<div id="igc-grid-inner"><div id="igc-grid-head"></div><div id="igc-grid-tiles"></div>' +
-      '<nav id="igc-pager"><button type="button" data-go="-1">← 上一頁</button><span></span>' +
-      '<button type="button" data-go="1">下一頁 →</button></nav></div>';
+      '<nav id="igc-pager"><button type="button" data-go="-1"></button><span></span>' +
+      '<button type="button" data-go="1"></button></nav></div>';
     grid.addEventListener("click", (e) => {
       const tile = e.target.closest(".igc-tile");
       if (tile) {
@@ -351,22 +357,23 @@
     const ended = feedEnded();
     const loadingPage = items.length < PAGE_SIZE && !ended;
     const midnight = new Date().setHours(0, 0, 0, 0);
-    const sig = JSON.stringify([feedPage, ended, loadingPage, midnight, items]);
+    const sig = JSON.stringify([doomntI18n.lang, feedPage, ended, loadingPage, midnight, items]);
     if (sig === gridSig) return;
     gridSig = sig;
 
     let html = "";
     for (const p of items) html += tileHtml(p, midnight);
-    if (loadingPage) html += '<div class="igc-grid-loading">載入中…</div>';
-    else if (!items.length) html += '<div class="igc-grid-loading">沒有更多貼文了</div>';
+    if (loadingPage) html += '<div class="igc-grid-loading">' + t("loading") + "</div>";
+    else if (!items.length) html += '<div class="igc-grid-loading">' + t("noMorePosts") + "</div>";
     grid.querySelector("#igc-grid-tiles").innerHTML = html;
 
     const [prev, label, next] = grid.querySelector("#igc-pager").children;
     const lastPage = ended && posts.length <= start + PAGE_SIZE;
     prev.disabled = feedPage === 0;
-    label.textContent = "第 " + (feedPage + 1) + " 頁";
+    setText(prev, t("prev"));
+    setText(label, t("page", { n: feedPage + 1 }));
     next.disabled = lastPage || loadingPage;
-    next.textContent = lastPage ? "沒有更多貼文了" : "下一頁 →";
+    setText(next, lastPage ? t("noMorePosts") : t("next"));
   }
 
   function showGrid() {
@@ -448,6 +455,15 @@
   const POSTERS = ["poster-1.png", "poster-2.png", "poster-3.png", "poster-4.png", "poster-5.png", "poster-6.png", "poster-7.png", "poster-8.png"];
   const poster = POSTERS[Math.floor(Math.random() * POSTERS.length)];
 
+  // 英文介面用 images/en/ 裡的英文版；換語言時馬上換圖
+  const posterUrl = () => chrome.runtime.getURL((doomntI18n.lang === "en" ? "images/en/" : "images/") + poster);
+  doomntI18n.onChange(() => {
+    const img = document.querySelector("#igc-meme img");
+    if (img) img.src = posterUrl();
+    renderGrid();
+    schedule(); // 切換按鈕的文字
+  });
+
   function addMeme(postsBlock) {
     let box = document.getElementById("igc-meme");
     if (box && box.previousElementSibling === postsBlock) return;
@@ -455,7 +471,7 @@
       box = document.createElement("div");
       box.id = "igc-meme";
       const img = document.createElement("img");
-      img.src = chrome.runtime.getURL("images/" + poster);
+      img.src = posterUrl();
       img.alt = "";
       img.draggable = false;
       box.appendChild(img);
@@ -540,8 +556,7 @@
       box = document.createElement("div");
       box.id = "igc-toggle";
       box.innerHTML =
-        '<a data-mode="stories" href="/">限時動態</a>' +
-        '<a data-mode="posts" href="/?variant=following">貼文</a>';
+        '<a data-mode="stories" href="/"></a><a data-mode="posts" href="/?variant=following"></a>';
     }
     box.hidden = false;
     if (!storiesOnly) {
@@ -555,6 +570,8 @@
     }
     const mode = storiesOnly ? "stories" : "posts";
     for (const a of box.querySelectorAll("a")) {
+      const label = t(a.dataset.mode);
+      if (a.textContent !== label) a.textContent = label; // 只在不同時才改，否則每次都會觸發 MutationObserver
       a.classList.toggle("igc-active", a.dataset.mode === mode);
     }
   }

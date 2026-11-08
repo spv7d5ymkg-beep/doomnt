@@ -10,14 +10,22 @@
   <svg width="28" height="28" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#1E1E1E"/><rect x="26" y="16" width="48" height="18" rx="4" fill="#F4F3EF"/><rect x="26" y="41" width="48" height="18" rx="4" fill="#F4F3EF" opacity="0.4"/><rect x="26" y="66" width="48" height="18" rx="4" fill="#F4F3EF" opacity="0.15"/><rect x="12" y="47" width="76" height="6" rx="3" fill="#FF4F1A"/></svg>
   <span class="name">Doomn't</span>
 </header>
-<div class="label">選項</div>
+<label class="row lang-row">
+  <span class="title" data-i18n="language">語言</span>
+  <select id="lang">
+    <option value="zh">繁體中文</option>
+    <option value="en">English</option>
+  </select>
+</label>
+<div class="label" data-i18n="options">選項</div>
 <label class="row">
   <span class="text">
-    <span class="title">4chan 過濾</span>
-    <span class="desc">藏起成人看板和 Misc（/pol/ 除外），熱門討論串只顯示 SFW</span>
+    <span class="title" data-i18n="fourchanTitle">4chan 過濾</span>
+    <span class="desc" data-i18n="fourchanDesc">藏起成人看板和 Misc（/pol/ 除外），熱門討論串只顯示 SFW</span>
   </span>
   <input type="checkbox" id="fourchan" role="switch">
 </label>
+<script src="../common/i18n.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>

@@ -1,12 +1,23 @@
 (function () {
+  const { t } = doomntI18n; // 介面語言（common/i18n.js）
+  // 只在文字不同時才改：每次都改會觸發 MutationObserver，又跑一次檢查
+  const setText = (el, s) => {
+    if (el.textContent !== s) el.textContent = s;
+  };
+
   // ---------- 首頁空白處的圖片：每次載入頁面隨機一張 ----------
-  // style.css 用 --ytc-home-img 當首頁的背景圖
+  // style.css 用 --ytc-home-img 當首頁的背景圖；英文介面用 images/en/ 裡的英文版
   const POSTERS = ["poster-1.png", "poster-2.png", "poster-3.png", "poster-4.png", "poster-5.png", "poster-6.png", "poster-7.png", "poster-8.png"];
   const poster = POSTERS[Math.floor(Math.random() * POSTERS.length)];
-  document.documentElement.style.setProperty(
-    "--ytc-home-img",
-    'url("' + chrome.runtime.getURL("images/" + poster) + '")'
-  );
+  function setPoster() {
+    const dir = doomntI18n.lang === "en" ? "images/en/" : "images/";
+    document.documentElement.style.setProperty("--ytc-home-img", 'url("' + chrome.runtime.getURL(dir + poster) + '")');
+  }
+  setPoster();
+  doomntI18n.onChange(() => {
+    setPoster();
+    paginateSubscriptions(); // 分頁按鈕的文字
+  });
 
   // ---------- 路徑規則 ----------
   const SHORTS_RE = /^\/shorts\/([\w-]+)/; // /shorts/影片ID → 改開一般播放頁
@@ -260,9 +271,7 @@
       pager = document.createElement("nav");
       pager.id = "ytc-pager";
       pager.innerHTML =
-        '<button type="button" data-go="-1">← 上一頁</button>' +
-        "<span></span>" +
-        '<button type="button" data-go="1">下一頁 →</button>';
+        '<button type="button" data-go="-1"></button><span></span><button type="button" data-go="1"></button>';
       pager.addEventListener("click", (e) => {
         const btn = e.target.closest("button[data-go]");
         if (!btn || btn.disabled) return;
@@ -276,9 +285,10 @@
     pager.hidden = !pageFull && !lastPage; // 這一頁還在載入時先不顯示
     const [prev, label, next] = pager.children;
     prev.disabled = subsPage === 0;
-    label.textContent = "第 " + (subsPage + 1) + " 頁";
+    setText(prev, t("prev"));
+    setText(label, t("page", { n: subsPage + 1 }));
     next.disabled = !pageFull || lastPage;
-    next.textContent = lastPage ? "沒有更多影片了" : "下一頁 →";
+    setText(next, lastPage ? t("noMoreVideos") : t("next"));
   }
 
   // ---------- 清單模式：影片長度與觀看次數（style.css 藏起了全站的縮圖） ----------
