@@ -71,6 +71,7 @@
   let busy = false; // 背景捲動中（載入或打開貼文）
   let gridSig = ""; // 上次畫的內容，沒變就不重畫
   let openedAt = 0; // 最近一次從格狀版面打開貼文的時間
+  let dialogSeenAt = 0; // 最近一次看到貼文對話框的時間
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -491,7 +492,8 @@
     toggleStoriesOnly = storiesOnly;
     let box = document.getElementById("igc-toggle");
     if (!showing) {
-      if (box) box.remove();
+      // 格狀版面上的按鈕跟著格狀版面（打開貼文對話框時格狀版面還在，按鈕也留著，版面才不會移動）
+      if (box && !box.closest("#igc-grid")) box.remove();
       return;
     }
     // 離開首頁、舊內容還在時：按鈕就在舊首頁裡，跟著它一起消失；維持原本的選取狀態
@@ -596,12 +598,15 @@
     // 格狀版面：只在首頁「貼文」模式顯示。
     // 從格狀版面打開的貼文（Instagram 的對話框，網址暫時變成 /p/…）開著時保留，關掉後回到原本那一頁
     const postsMode = p === "/" && !storiesOnly;
-    // （剛按下去時網址先變、對話框晚一點才出現，這段時間也要保留，否則格狀版面會被拿掉、回來時捲動位置歸零）
+    // 打開時網址先變、對話框晚一點才出現；關閉時對話框先消失、網址晚一點才變回來。
+    // 這兩段空檔也要保留，否則格狀版面會被拿掉，回來時捲動位置歸零
+    const now = Date.now();
+    if (document.querySelector('[role="dialog"]')) dialogSeenAt = now;
     const overGrid =
       !postsMode &&
       POST_PAGE_RE.test(p) &&
       document.getElementById("igc-grid") &&
-      (document.querySelector('[role="dialog"]') || Date.now() - openedAt < 3000);
+      (now - dialogSeenAt < 1000 || now - openedAt < 3000);
     if (!postsMode && !overGrid) hideGrid();
     const explore = /^\/explore\/?$/.test(p);
     const root = document.documentElement;
