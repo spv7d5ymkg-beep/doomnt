@@ -376,6 +376,45 @@
     return pager;
   }
 
+  // 今天和更早的貼文之間畫一條紅線（和 YouTube 訂閱內容一樣）：標在線下第一篇上，線上那篇不用動。
+  // 貼文的 <time datetime> 是確切時間，直接比今天 00:00。
+  // 動態大致照時間排，偶爾有一兩篇排錯：找一個位置，讓線上「更早」加上線下「今天」的貼文最少。
+  function postedToday(article) {
+    const t = article.querySelector("time[datetime]");
+    if (!t) return null;
+    const ms = Date.parse(t.getAttribute("datetime"));
+    return Number.isNaN(ms) ? null : ms >= new Date().setHours(0, 0, 0, 0);
+  }
+
+  function markTodayLine(articles) {
+    const items = articles
+      .filter((a) => a.dataset.igcRank !== undefined)
+      .sort((a, b) => a.dataset.igcRank - b.dataset.igcRank);
+    const flags = items.map(postedToday);
+    let after = flags.filter((f) => f === true).length;
+    let before = 0;
+    let best = null;
+    let bestErr = Infinity;
+    let seenToday = false;
+    for (let i = 0; i < items.length; i++) {
+      if (seenToday && flags[i] === false && before + after < bestErr) {
+        bestErr = before + after;
+        best = i;
+      }
+      if (flags[i] === true) {
+        seenToday = true;
+        after--;
+      } else if (flags[i] === false) {
+        before++;
+      }
+    }
+    const firstEarlier = best === null ? null : items[best];
+    for (const el of document.querySelectorAll("main article.igc-first-earlier")) {
+      if (el !== firstEarlier) el.classList.remove("igc-first-earlier");
+    }
+    if (firstEarlier) firstEarlier.classList.add("igc-first-earlier");
+  }
+
   function paginateFeed() {
     if (feedHref !== location.href) {
       feedHref = location.href;
@@ -416,6 +455,8 @@
         lastOnPage = a;
       }
     }
+
+    markTodayLine(articles);
 
     document.documentElement.classList.add("igc-paged");
     scheduleBar();

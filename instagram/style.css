@@ -31,17 +31,28 @@ html.igc-stories-only main article {
   display: none !important;
 }
 
-/* 貼文之間的分隔線：和 YouTube 清單的分隔線一樣（淺色 10% 黑、深色 15% 白）
-   線放在兩篇正中間：Instagram 原本在說明文字下方留了 36px，改成上下各約 18px */
-main article {
-  padding-top: 18px !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+/* 「貼文」模式：今天和更早的貼文之間的紅線（和 YouTube 訂閱內容一樣，Doom't 主色 #FF4F1A），線下標「更早」
+   紅線用 ::after 畫成圓頭的長條，「更早」放在 ::before（位置見 content.js 的 markTodayLine） */
+main article.igc-first-earlier {
+  position: relative;
 }
-main article > :last-child {
-  margin-bottom: 2px !important;
+main article.igc-first-earlier::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: #ff4f1a;
 }
-html.__fb-dark-mode main article {
-  border-bottom-color: rgba(255, 255, 255, 0.15) !important;
+main article.igc-first-earlier::before {
+  content: "更早";
+  display: block;
+  padding: 16px 4px 12px;
+  font: 500 12px/1 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
+  letter-spacing: 3px;
+  color: rgb(var(--ig-secondary-text, 106, 113, 122));
 }
 
 /* 限時動態下方的圖片（只在「限時動態」模式顯示） */
