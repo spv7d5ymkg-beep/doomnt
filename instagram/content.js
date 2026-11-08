@@ -59,7 +59,7 @@
   // 而且是照「一篇一列」算位置的，不能直接把它排成格狀。
   // 所以原本的動態留在頁面上但看不見（style.css：html.igc-grid main），
   // 在背景一段一段捲動它，讓 Instagram 繼續載入貼文；每篇出現時記下圖片、帳號、讚數等資料，
-  // 再由我們自己畫成格狀（#igc-grid，蓋住整個畫面、包含左側選單，有自己的捲軸）。
+  // 再由我們自己畫成格狀（#igc-grid，蓋在左側選單右邊的整個區域，有自己的捲軸）。
   // 點格子：把背景的動態捲到那一篇，按它的「回應」按鈕，用 Instagram 自己的對話框打開整篇貼文。
   // 廣告、建議貼文已被 filterFeed 藏起來，不算在內。重新整理或重新進入這一頁就回到第 1 頁。
   const PAGE_SIZE = 12;
@@ -299,6 +299,19 @@
     return grid;
   }
 
+  // 格狀版面放在左側選單的右邊（視窗寬窄不同，選單會收合成只有圖示或展開顯示文字，寬度不同）。
+  // 選單是 position: fixed 的區塊，從裡面的「探索」連結往上找，取貼齊左邊、和畫面差不多高的那一層的右緣
+  function sidebarRight() {
+    const link = document.querySelector('a[href="/explore/"]');
+    let right = 0;
+    for (let el = link; el && el !== document.body; el = el.parentElement) {
+      const r = el.getBoundingClientRect();
+      if (r.left < 10 && r.height > window.innerHeight / 2) right = Math.max(right, Math.round(r.right));
+      if (getComputedStyle(el).position === "fixed") break;
+    }
+    return right;
+  }
+
   function tileHtml(p) {
     const esc = (s) => String(s || "").replace(/[&<>"]/g, (c) => "&#" + c.charCodeAt(0) + ";");
     const badge = p.video ? ICON_VIDEO : p.carousel ? ICON_CAROUSEL : "";
@@ -318,6 +331,7 @@
   function renderGrid() {
     const grid = document.getElementById("igc-grid");
     if (!grid) return;
+    grid.style.left = sidebarRight() + "px";
     const start = feedPage * PAGE_SIZE;
     const items = posts.slice(start, start + PAGE_SIZE);
     const ended = feedEnded();

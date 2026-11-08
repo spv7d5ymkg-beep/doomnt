@@ -129,7 +129,7 @@ html.igc-grid {
 html.igc-grid main {
   visibility: hidden !important;
 }
-/* 蓋住整個畫面（包含左側選單），有自己的捲軸；Instagram 的貼文對話框會開在它上面 */
+/* 蓋住左側選單右邊的整個區域（left 由 content.js 設定），有自己的捲軸；Instagram 的貼文對話框會開在它上面 */
 #igc-grid {
   position: fixed;
   inset: 0;
