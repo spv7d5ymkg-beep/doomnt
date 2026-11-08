@@ -218,18 +218,13 @@ html.igc-grid .igc-unstack {
   width: 19px;
   height: 19px;
 }
-/* 今天和更早的貼文之間：紅線橫跨三欄，「更早」的貼文從下一列開始（和 YouTube 訂閱內容一樣，Doom't 主色 #FF4F1A） */
-.igc-grid-today {
-  grid-column: 1 / -1;
-  margin: 12px 0 8px;
-  padding-top: 16px;
-  border-top: 4px solid #ff4f1a;
-  border-radius: 2px;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: 3px;
-  color: rgb(var(--ig-secondary-text, 106, 113, 122));
+/* 今天以前的貼文：變淡，滑鼠移上去恢復（見 content.js 的 tileHtml） */
+.igc-tile-earlier img {
+  opacity: 0.4;
+  transition: opacity 0.1s;
+}
+.igc-tile-earlier:hover img {
+  opacity: 1;
 }
 .igc-grid-loading {
   grid-column: 1 / -1;

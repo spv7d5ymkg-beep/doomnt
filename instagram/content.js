@@ -233,32 +233,6 @@
     }
   }
 
-  // 今天和更早的貼文之間的紅線（和 YouTube 訂閱內容一樣）：回傳線下第一篇。
-  // 貼文的 <time datetime> 是確切時間，直接比今天 00:00。
-  // 動態大致照時間排，偶爾有一兩篇排錯：找一個位置，讓線上「更早」加上線下「今天」的貼文最少。
-  function firstEarlierPost() {
-    const midnight = new Date().setHours(0, 0, 0, 0);
-    const flags = posts.map((p) => (p.time === undefined || Number.isNaN(p.time) ? null : p.time >= midnight));
-    let after = flags.filter((f) => f === true).length;
-    let before = 0;
-    let best = null;
-    let bestErr = Infinity;
-    let seenToday = false;
-    for (let i = 0; i < posts.length; i++) {
-      if (seenToday && flags[i] === false && before + after < bestErr) {
-        bestErr = before + after;
-        best = i;
-      }
-      if (flags[i] === true) {
-        seenToday = true;
-        after--;
-      } else if (flags[i] === false) {
-        before++;
-      }
-    }
-    return best === null ? null : posts[best];
-  }
-
   // 圖示（線條風格，和 Instagram 一致）
   const ICON_VIDEO =
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>';
@@ -325,11 +299,14 @@
     grid.style.left = (right ? sidebarMin : 0) + "px";
   }
 
-  function tileHtml(p) {
+  // 今天以前的貼文：格子變淡（滑鼠移上去恢復），今天的貼文比較醒目。
+  // 貼文的 <time datetime> 是確切時間，直接比今天 00:00；還不知道時間的當成今天
+  function tileHtml(p, midnight) {
     const esc = (s) => String(s || "").replace(/[&<>"]/g, (c) => "&#" + c.charCodeAt(0) + ";");
     const badge = p.video ? ICON_VIDEO : p.carousel ? ICON_CAROUSEL : "";
     return (
-      '<a class="igc-tile" href="/p/' + esc(p.id) + '/" data-id="' + esc(p.id) + '">' +
+      '<a class="igc-tile' + (p.time < midnight ? " igc-tile-earlier" : "") +
+      '" href="/p/' + esc(p.id) + '/" data-id="' + esc(p.id) + '">' +
       (p.img ? '<img src="' + esc(p.img) + '" alt="" draggable="false">' : "") +
       (badge ? '<span class="igc-tile-badge">' + badge + "</span>" : "") +
       '<span class="igc-tile-info">' +
@@ -349,16 +326,13 @@
     const items = posts.slice(start, start + PAGE_SIZE);
     const ended = feedEnded();
     const loadingPage = items.length < PAGE_SIZE && !ended;
-    const earlier = firstEarlierPost();
-    const sig = JSON.stringify([feedPage, ended, loadingPage, earlier && earlier.id, items]);
+    const midnight = new Date().setHours(0, 0, 0, 0);
+    const sig = JSON.stringify([feedPage, ended, loadingPage, midnight, items]);
     if (sig === gridSig) return;
     gridSig = sig;
 
     let html = "";
-    for (const p of items) {
-      if (p === earlier) html += '<div class="igc-grid-today">更早</div>';
-      html += tileHtml(p);
-    }
+    for (const p of items) html += tileHtml(p, midnight);
     if (loadingPage) html += '<div class="igc-grid-loading">載入中…</div>';
     else if (!items.length) html += '<div class="igc-grid-loading">沒有更多貼文了</div>';
     grid.querySelector("#igc-grid-tiles").innerHTML = html;
