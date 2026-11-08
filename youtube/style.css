@@ -525,6 +525,14 @@ ytd-video-renderer #channel-info #channel-thumbnail * {
   margin: 0 !important;
   padding: 0 !important;
 }
+/* 合作影片（「和2」）：好幾個頻道的頭像疊在一起，縮成 18px 會擠到名稱；只留主頻道那一個（排在最後、疊在最上面） */
+.ytc-avatar .ytAvatarStackViewModelAvatars > * > :not(:last-child) {
+  display: none !important;
+}
+.ytc-avatar .ytAvatarStackViewModelAvatars > * > * {
+  position: static !important;
+  transform: none !important;
+}
 /* 正在直播的頻道：頭像底下的「直播」標籤縮成 18px 會擠成一團，連同頭像外的紅圈一起拿掉（改由列尾的紅底「直播」標示） */
 .ytc-avatar .ytSpecAvatarShapeLiveBadge,
 ytd-video-renderer #channel-thumbnail .ytSpecAvatarShapeLiveBadge,
