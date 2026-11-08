@@ -299,19 +299,30 @@
     return grid;
   }
 
-  // 格狀版面放在左側選單的右邊（視窗寬窄不同，選單會收合成只有圖示或展開顯示文字，寬度不同）。
-  // 選單是 position: fixed 的區塊，從裡面的「探索」連結往上找，取貼齊左邊、和畫面差不多高的那一層的右緣
-  const SIDEBAR_EXPANDED = 238; // 選單展開後的寬度
-  let sidebarMax = 0; // 看過最寬的選單（有些視窗寬度下選單一直是展開的，可能更寬）
-  function sidebarRight() {
+  // 格狀版面放在左側選單（收合時）的右邊；滑鼠移到選單上時選單展開（72px → 238px），蓋在格狀版面上面，版面不移動。
+  // 選單是 position: fixed 的區塊，從裡面的「探索」連結往上找：
+  // - 貼齊左邊、和畫面差不多高的那一層的右緣 = 選單寬度。取看過最窄的（＝收合時），
+  //   視窗大小改變時重新量（有些寬度下選單一直是展開的）
+  // - 選單外面幾層 Instagram 的區塊設了 z-index: 0，把選單困在格狀版面底下；
+  //   標上 .igc-unstack，貼文模式時拿掉（style.css），選單自己的 z-index 才比格狀版面高
+  let sidebarMin = 0;
+  window.addEventListener("resize", () => (sidebarMin = 0));
+  function placeGrid(grid) {
     const link = document.querySelector('a[href="/explore/"]');
     let right = 0;
-    for (let el = link; el && el !== document.body; el = el.parentElement) {
+    let el = link;
+    for (; el && el !== document.body; el = el.parentElement) {
       const r = el.getBoundingClientRect();
       if (r.left < 10 && r.height > window.innerHeight / 2) right = Math.max(right, Math.round(r.right));
       if (getComputedStyle(el).position === "fixed") break;
     }
-    return right;
+    if (el && el !== document.body) {
+      for (let up = el.parentElement; up && up !== document.body; up = up.parentElement) {
+        if (up.classList.contains("igc-unstack") || getComputedStyle(up).zIndex !== "auto") up.classList.add("igc-unstack");
+      }
+    }
+    if (right) sidebarMin = sidebarMin ? Math.min(sidebarMin, right) : right;
+    grid.style.left = (right ? sidebarMin : 0) + "px";
   }
 
   function tileHtml(p) {
@@ -333,10 +344,7 @@
   function renderGrid() {
     const grid = document.getElementById("igc-grid");
     if (!grid) return;
-    // 滑鼠移到選單上時它會展開（72px → 238px）：一開始就留好展開後的寬度，格狀版面不跟著移動
-    const side = sidebarRight();
-    if (side) sidebarMax = Math.max(sidebarMax, side, SIDEBAR_EXPANDED);
-    grid.style.left = (side ? sidebarMax : 0) + "px";
+    placeGrid(grid);
     const start = feedPage * PAGE_SIZE;
     const items = posts.slice(start, start + PAGE_SIZE);
     const ended = feedEnded();
