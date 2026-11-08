@@ -31,30 +31,6 @@ html.igc-stories-only main article {
   display: none !important;
 }
 
-/* 「貼文」模式：今天和更早的貼文之間的紅線（和 YouTube 訂閱內容一樣，Doom't 主色 #FF4F1A），線下標「更早」
-   紅線用 ::after 畫成圓頭的長條，「更早」放在 ::before（位置見 content.js 的 markTodayLine） */
-main article.igc-first-earlier {
-  position: relative;
-}
-main article.igc-first-earlier::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  border-radius: 2px;
-  background: #ff4f1a;
-}
-main article.igc-first-earlier::before {
-  content: "更早";
-  display: block;
-  padding: 16px 4px 12px;
-  font: 500 12px/1 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
-  letter-spacing: 3px;
-  color: rgb(var(--ig-secondary-text, 106, 113, 122));
-}
-
 /* 限時動態下方的圖片（只在「限時動態」模式顯示） */
 #igc-meme {
   display: none;
@@ -73,72 +49,19 @@ html.igc-stories-only #igc-meme {
   user-select: none;
 }
 
-/* 「貼文」模式分頁：其他頁的貼文看不見，但保留原本高度（原因見 content.js） */
-.igc-other-page {
-  visibility: hidden !important;
-}
-
-/* 分頁的捲動範圍（見 content.js）
-   - igc-scroll-lock：滑鼠滾輪連續捲到邊界時，暫時鎖住整個頁面的捲動
-   - igc-paged：「貼文」模式（藏起瀏覽器捲軸、顯示自訂捲軸） */
-html.igc-scroll-lock {
-  overflow: hidden !important;
-}
-/* 「貼文」模式：藏起瀏覽器的捲軸，改用只代表目前這一頁的自訂捲軸（見 content.js） */
-html.igc-paged {
-  scrollbar-width: none;
-}
-html.igc-paged::-webkit-scrollbar {
-  display: none;
-}
-#igc-scrollbar {
-  display: none;
-}
-html.igc-paged #igc-scrollbar {
-  display: block;
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2;
-  width: 14px;
-  background: rgba(var(--ig-primary-text, 12, 16, 20), 0.04);
-}
-#igc-scrollbar-thumb {
-  position: absolute;
-  top: 0;
-  right: 3px;
-  width: 8px;
-  border-radius: 4px;
-  background: rgba(var(--ig-primary-text, 12, 16, 20), 0.3);
-  cursor: default;
-}
-#igc-scrollbar:hover #igc-scrollbar-thumb,
-#igc-scrollbar.igc-dragging #igc-scrollbar-thumb {
-  background: rgba(var(--ig-primary-text, 12, 16, 20), 0.5);
-}
-
 /* 顏色一律用 Instagram 自己的色彩變數（格式是 "r, g, b"），跟著 Instagram 的「外觀」設定
    切換深色／淺色，而不是跟著系統。括號裡的是淺色模式的值，變數不存在時才會用到。 */
 
-/* 分頁按鈕：← 上一頁　第 N 頁　下一頁 → */
-/* 掛在 <body> 上、絕對定位在本頁最後一篇正下方（位置、寬度由 content.js 設定） */
+/* 分頁按鈕：← 上一頁　第 N 頁　下一頁 → （格狀版面最下方） */
 #igc-pager {
-  position: absolute;
-  z-index: 1;
-  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16px;
   margin: 0;
-  padding-top: 24px;
-  border-top: 1px solid rgb(var(--ig-separator, 219, 223, 228));
+  padding: 24px 0 48px;
   font: 14px/1.4 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
   color: rgb(var(--ig-secondary-text, 106, 113, 122));
-}
-#igc-pager[hidden] {
-  display: none;
 }
 #igc-pager button {
   padding: 8px 16px;
@@ -169,7 +92,7 @@ html.__fb-dark-mode #igc-pager button:hover:not(:disabled) {
 }
 
 /* 限時動態 / 貼文 切換按鈕 */
-/* 放在首頁內容裡、限時動態列上方置中（由 content.js 插入），不會蓋住側欄面板 */
+/* 限時動態模式：限時動態列上方置中；貼文模式：格狀版面最上方（由 content.js 插入） */
 #igc-toggle {
   display: flex;
   width: fit-content;
@@ -189,12 +112,6 @@ html.__fb-dark-mode #igc-pager button:hover:not(:disabled) {
 #igc-toggle a:hover {
   color: rgb(var(--ig-primary-text, 12, 16, 20));
 }
-/* 第 2 頁以後：掛在 <body> 上、絕對定位在本頁第一篇正上方（位置由 content.js 設定） */
-#igc-toggle.igc-toggle-floating {
-  position: absolute;
-  z-index: 1;
-  margin: 0;
-}
 #igc-toggle[hidden] {
   display: none;
 }
@@ -202,4 +119,116 @@ html.__fb-dark-mode #igc-pager button:hover:not(:disabled) {
 #igc-toggle a.igc-active {
   background: rgb(var(--ig-primary-text, 12, 16, 20));
   color: rgb(var(--ig-primary-background, 255, 255, 255));
+}
+
+/* ========== 首頁「貼文」模式：格狀版面（見 content.js） ========== */
+/* 原本的動態留在頁面上、在背景載入貼文，但看不見也不能捲（由 content.js 在背景捲動） */
+html.igc-grid {
+  overflow: hidden !important;
+}
+html.igc-grid main {
+  visibility: hidden !important;
+}
+/* 蓋住整個畫面（包含左側選單），有自己的捲軸；Instagram 的貼文對話框會開在它上面 */
+#igc-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+  background: rgb(var(--ig-primary-background, 255, 255, 255));
+  font: 14px/1.4 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
+}
+#igc-grid-inner {
+  max-width: 935px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+#igc-grid-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.igc-tile {
+  position: relative;
+  display: block;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: rgb(var(--ig-highlight-background, 243, 245, 247));
+  cursor: pointer;
+}
+.igc-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+}
+/* 右上角：影片 / 多張相片 */
+.igc-tile-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  color: #fff;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+}
+.igc-tile-badge svg,
+.igc-tile-stats svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* 滑鼠移上去：帳號、讚數、留言數 */
+.igc-tile-info {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.igc-tile:hover .igc-tile-info {
+  opacity: 1;
+}
+.igc-tile-stats {
+  display: flex;
+  gap: 20px;
+  font-size: 16px;
+}
+.igc-tile-stats > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.igc-tile-stats svg {
+  width: 19px;
+  height: 19px;
+}
+/* 今天和更早的貼文之間：紅線橫跨三欄，「更早」的貼文從下一列開始（和 YouTube 訂閱內容一樣，Doom't 主色 #FF4F1A） */
+.igc-grid-today {
+  grid-column: 1 / -1;
+  margin: 12px 0 8px;
+  padding-top: 16px;
+  border-top: 4px solid #ff4f1a;
+  border-radius: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 3px;
+  color: rgb(var(--ig-secondary-text, 106, 113, 122));
+}
+.igc-grid-loading {
+  grid-column: 1 / -1;
+  padding: 32px 0;
+  text-align: center;
+  color: rgb(var(--ig-secondary-text, 106, 113, 122));
 }

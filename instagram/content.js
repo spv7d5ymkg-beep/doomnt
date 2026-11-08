@@ -54,27 +54,25 @@
     }
   }
 
-  // ---------- 首頁「貼文」模式：分頁，每頁 10 篇 ----------
-  // Instagram 會把捲過去的貼文從頁面上移除（只留空白佔位），所以不能數頁面上有幾個 <article>，
-  // 而是依照「第一次出現的順序」記下每篇貼文的 ID，只顯示目前這一頁的 10 篇。
-  //
-  // 其他頁的貼文用 visibility: hidden 藏起來：看不見，但保留原本的高度。
-  // 不能用 display: none：Instagram「只顯示畫面附近貼文」的機制仍以為它們有高度，
-  // 位置算錯，捲到底會一直把畫面往上推、翻頁後頂端一片空白。
-  // 因為其他頁的貼文還佔著位置，所以限制捲動範圍：
-  // 往上最多到本頁第一篇（第 1 頁不限制），往下最多到分頁按鈕完整出現。
-  // 捲不到後面看不見的貼文，Instagram 也就不會再往下載入。
-  // 分頁按鈕不能放進 Instagram 的貼文清單裡：它照清單裡的元素逐個對應貼文，
-  // 多一個元素就算錯要顯示哪幾篇（會一直停在同幾篇、下面留一大片空白）。
-  // 所以按鈕放在 <body> 上，用絕對定位對齊本頁最後一篇的正下方。
+  // ---------- 首頁「貼文」模式：格狀版面（像探索頁），每頁 12 篇 ----------
+  // Instagram 的動態一次只把畫面附近的幾篇放在頁面上（其他的移除、留空白佔位），
+  // 而且是照「一篇一列」算位置的，不能直接把它排成格狀。
+  // 所以原本的動態留在頁面上但看不見（style.css：html.igc-grid main），
+  // 在背景一段一段捲動它，讓 Instagram 繼續載入貼文；每篇出現時記下圖片、帳號、讚數等資料，
+  // 再由我們自己畫成格狀（#igc-grid，蓋住整個畫面、包含左側選單，有自己的捲軸）。
+  // 點格子：把背景的動態捲到那一篇，按它的「回應」按鈕，用 Instagram 自己的對話框打開整篇貼文。
   // 廣告、建議貼文已被 filterFeed 藏起來，不算在內。重新整理或重新進入這一頁就回到第 1 頁。
-  const PAGE_SIZE = 10;
-  let feedHref = null; // 正在分頁的頁面網址
-  let feedOrder = []; // 依第一次出現順序排列的貼文 ID
+  const PAGE_SIZE = 12;
+  const PREFETCH_PAGES = 1; // 先多載入幾頁，按下一頁時馬上就有
+  let feedHref = null; // 目前格狀版面對應的網址
   let feedPage = 0; // 目前在第幾頁（從 0 開始）
-  let pageFirst = null; // 本頁第一篇（在頁面上時）
-  let pageLast = null; // 本頁最後一篇（本頁已滿、在頁面上時）：分頁按鈕對齊它的正下方
-  let jumping = false; // 翻頁捲動中：暫停捲動限制
+  let posts = []; // 依第一次出現順序：{ id, user, img, likes, comments, video, carousel, time, y }
+  let postById = new Map();
+  let busy = false; // 背景捲動中（載入或打開貼文）
+  let gridSig = ""; // 上次畫的內容，沒變就不重畫
+  let openedAt = 0; // 最近一次從格狀版面打開貼文的時間
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   function postId(article) {
     const a = article.querySelector('a[href*="/p/"], a[href*="/reel/"]');
@@ -82,321 +80,164 @@
     return m ? m[1] : null;
   }
 
-  // 翻頁：重新分類後捲到新一頁的第一篇。那一篇可能已被 Instagram 移除（往前翻時），
-  // 就往那個方向一段一段捲，直到它重新出現。
-  async function goToPage(page) {
-    const forward = page > feedPage;
-    feedPage = Math.max(0, page);
-    barMin = barMax = null;
-    jumping = true;
-    try {
-      paginateFeed();
-      if (feedPage === 0) {
-        window.scrollTo(0, 0);
-        return;
+  // 讚數、留言數：動作列裡每個圖示後面緊接著的數字（沒有數字就是 0 或被隱藏）
+  const LIKE_LABEL_RE = /^(讚|收回讚|Like|Unlike)$/;
+  const COMMENT_LABEL_RE = /^(回應|留言|Comment)$/;
+  function readCounts(article) {
+    const out = {};
+    const icon = [...article.querySelectorAll("section svg[aria-label]")].find((s) =>
+      LIKE_LABEL_RE.test(s.getAttribute("aria-label"))
+    );
+    const row = icon && icon.closest("section").firstElementChild;
+    if (!row) return out;
+    let key = null;
+    for (const c of row.children) {
+      const svg = c.querySelector("svg[aria-label]");
+      if (svg) {
+        const l = svg.getAttribute("aria-label");
+        key = LIKE_LABEL_RE.test(l) ? "likes" : COMMENT_LABEL_RE.test(l) ? "comments" : null;
+      } else if (key) {
+        const t = c.textContent.trim();
+        if (/\d/.test(t)) out[key] = t;
+        key = null;
       }
-      for (let i = 0; i < 60 && !(pageFirst && pageFirst.isConnected); i++) {
-        window.scrollBy(0, forward ? window.innerHeight : -window.innerHeight);
-        await new Promise((r) => setTimeout(r, 100));
-        paginateFeed();
-      }
-      if (pageFirst && pageFirst.isConnected) {
-        window.scrollTo(0, pageTop(pageFirst));
-      }
-    } finally {
-      jumping = false;
-      updateBar();
     }
+    return out;
   }
 
-  // 本頁第一篇上方留一點空間的位置
-  // 第 2 頁以後，第一篇上方留 80px：「限時動態／貼文」切換按鈕放在這裡（見 placeFloatingToggle）
-  const PAGE_TOP_GAP = 80;
-  function pageTop(el) {
-    return Math.max(0, Math.round(el.getBoundingClientRect().top + window.scrollY - PAGE_TOP_GAP));
-  }
-
-  // 第 2 頁以後：切換按鈕放在本頁第一篇正上方。
-  // 貼文清單裡不能插東西（Instagram 會算錯要顯示哪幾篇），所以和分頁按鈕一樣掛在 <body> 上絕對定位。
-  function placeFloatingToggle() {
-    const box = document.getElementById("igc-toggle");
-    if (!box || !box.classList.contains("igc-toggle-floating")) return;
-    if (!pageFirst || !pageFirst.isConnected) {
-      box.hidden = true;
-      return;
+  // 封面：貼文裡第一張夠大的圖（多張相片是第一張，影片是預覽圖）
+  function coverImage(article) {
+    for (const img of article.querySelectorAll("img")) {
+      if (img.getBoundingClientRect().width < 150) continue; // 大頭貼等小圖
+      const src = img.currentSrc || img.src;
+      if (src) return src;
     }
-    box.hidden = false;
-    const r = pageFirst.getBoundingClientRect();
-    box.style.top = Math.round(r.top + window.scrollY - box.offsetHeight - 20) + "px";
-    box.style.left = Math.round(r.left + window.scrollX + (r.width - box.offsetWidth) / 2) + "px";
+    return null;
   }
 
-  // 把分頁按鈕對齊本頁最後一篇的正下方；那一篇不在頁面上就藏起來
-  function placePager() {
-    const pager = document.getElementById("igc-pager");
-    if (!pager) return null;
-    if (!pageLast || !pageLast.isConnected) {
-      pager.hidden = true;
-      return pager;
+  function postUser(article) {
+    for (const a of article.querySelectorAll("a[href]")) {
+      const m = a.getAttribute("href").match(/^\/([^/?#]+)\/$/);
+      if (m && !/^(explore|reels?|p|stories)$/.test(m[1])) return m[1];
     }
-    const r = pageLast.getBoundingClientRect();
-    pager.style.top = Math.round(r.bottom + window.scrollY) + "px";
-    pager.style.left = Math.round(r.left + window.scrollX) + "px";
-    pager.style.width = Math.round(r.width) + "px";
-    pager.hidden = false;
-    return pager;
+    return null;
   }
 
-  // 滑鼠滾輪連續捲動時，Chrome 會把它當成同一段手勢：第一下沒被取消，後面每一下都不能取消。
-  // 這時改成暫時鎖住整個頁面的捲動（overflow: hidden）並停在邊界，滾輪停下一下子再解鎖。
-  let lockTimer = 0;
-  function lockScroll() {
-    document.documentElement.classList.add("igc-scroll-lock");
-    clearTimeout(lockTimer);
-    lockTimer = setTimeout(unlockScroll, 250);
-  }
-  function unlockScroll() {
-    clearTimeout(lockTimer);
-    document.documentElement.classList.remove("igc-scroll-lock");
-  }
-
-  // 捲動範圍：往上最多到本頁第一篇（第 1 頁不限制），往下最多到分頁按鈕完整出現。
-  // 每次都用當下的位置計算（Instagram 會隨時調整預留空白，位置會變）。
-  function scrollRange() {
-    let min = null;
-    let max = null;
-    if (feedPage > 0 && pageFirst && pageFirst.isConnected && !pageFirst.closest(".igc-other-page")) {
-      min = pageTop(pageFirst);
-    }
-    const pager = placePager();
-    if (pager && !pager.hidden) {
-      max = Math.max(0, Math.round(pager.getBoundingClientRect().bottom + window.scrollY + 48 - window.innerHeight));
-    }
-    return { min, max };
-  }
-
-  // 捲到頂或底就直接停住：在捲動發生之前判斷，這一下會超過範圍就取消，只捲到邊界為止。
-  // （如果先讓瀏覽器捲過頭再拉回來，就會感覺被推回去。）
-  function stopAtEdge(e, delta) {
-    if (jumping || delta === 0) return false;
-    const { min, max } = scrollRange();
-    const y = window.scrollY;
-    let edge = null;
-    if (delta > 0 && max !== null && y + delta > max) edge = max;
-    else if (delta < 0 && min !== null && y + delta < min) edge = min;
-    if (edge === null) return false;
-    if (e.cancelable) e.preventDefault();
-    else lockScroll();
-    // 還沒到邊界：補捲到邊界為止。已經超過邊界（例如第 10 篇的圖片載入後變矮、分頁按鈕往上移）：
-    // 停在原地，不要把畫面拉回去，否則看起來像被推回一小段
-    if (delta > 0 ? y < edge : y > edge) window.scrollTo({ top: edge, behavior: "instant" });
-    return true;
-  }
-
-  // 滑鼠滾輪、觸控板。
-  // 能取消的滾輪事件：這一下會超過邊界就取消，補捲到邊界為止（stopAtEdge）。
-  // 不能取消的（連續滾動的同一段手勢）：Chrome 會在自己的捲動執行緒先捲出去，來不及攔。
-  // 所以離邊界只剩約 3 格時就提前鎖住頁面捲動，改由這裡一格一格捲，最多剛好捲到邊界，
-  // 不會先捲出去再被拉回來。
-  const WHEEL_LOOKAHEAD = 3;
-  function wheelAtEdge(e, delta) {
-    if (jumping || delta === 0) return false;
-    const { min, max } = scrollRange();
-    const towardMax = delta > 0 && max !== null;
-    const towardMin = delta < 0 && min !== null;
-    if (!towardMax && !towardMin) return false;
-    const edge = towardMax ? max : min;
-    const y = window.scrollY;
-    const dist = towardMax ? edge - y : y - edge; // 離邊界還有多遠（負數 = 已經超過）
-    const step = Math.abs(delta);
-    if (dist > step * WHEEL_LOOKAHEAD) return false; // 離邊界還遠：照常捲（呼叫端會解鎖）
-    const locked = document.documentElement.classList.contains("igc-scroll-lock");
-    if (e.cancelable && !locked) return stopAtEdge(e, delta);
-    if (e.cancelable) e.preventDefault();
-    lockScroll();
-    if (dist > 0) {
-      const target = towardMax ? Math.min(y + step, edge) : Math.max(y - step, edge);
-      window.scrollTo({ top: target, behavior: "instant" });
-    }
-    return true;
-  }
-
-  window.addEventListener(
-    "wheel",
-    (e) => {
-      if (e.ctrlKey) return; // 縮放手勢
-      // 留言等對話框裡可以自己捲動，不要擋
-      if (e.target.closest && e.target.closest("[role='dialog']")) return;
-      const unit = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? window.innerHeight : 1;
-      // 往離開邊界的方向捲：馬上解鎖
-      if (!wheelAtEdge(e, e.deltaY * unit)) unlockScroll();
-    },
-    { passive: false, capture: true }
-  );
-
-  // 鍵盤：↑↓、Page Up/Down、空白鍵、Home/End（在輸入框裡打字時不處理）
-  window.addEventListener(
-    "keydown",
-    (e) => {
-      const t = e.target;
-      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-      if (t && t.closest && t.closest("[role='dialog']")) return;
-      const page = window.innerHeight * 0.875;
-      const delta = {
-        ArrowDown: 40,
-        ArrowUp: -40,
-        PageDown: page,
-        PageUp: -page,
-        " ": e.shiftKey ? -page : page,
-        End: Infinity,
-        Home: -Infinity,
-      }[e.key];
-      if (delta !== undefined) stopAtEdge(e, delta);
-    },
-    { capture: true }
-  );
-
-  // 保險：拖曳捲軸等無法事先攔下的捲動，往外捲過邊界就擋下。
-  // 只擋「越捲越遠」：停在邊界或原本的位置（取比較靠外的那個），不會把畫面往回拉。
-  let lastScrollY = window.scrollY;
-  window.addEventListener(
-    "scroll",
-    () => {
-      const y = window.scrollY;
-      if (!jumping) {
-        const { min, max } = scrollRange();
-        if (max !== null && y > max && y > lastScrollY) {
-          window.scrollTo({ top: Math.max(max, lastScrollY), behavior: "instant" });
-        } else if (min !== null && y < min && y < lastScrollY) {
-          window.scrollTo({ top: Math.min(min, lastScrollY), behavior: "instant" });
+  // 把背景動態裡目前在頁面上的貼文記下來（之前看過的就更新資料）
+  function collect() {
+    for (const a of document.querySelectorAll("main article")) {
+      const id = postId(a);
+      if (!id) continue;
+      let p = postById.get(id);
+      if (a.classList.contains("igc-hidden")) {
+        // 內容載入後才認出是廣告：拿掉，後面的往前遞補
+        if (p) {
+          posts = posts.filter((x) => x !== p);
+          postById.delete(id);
         }
+        continue;
       }
-      lastScrollY = window.scrollY;
-    },
-    { passive: true }
-  );
-
-  // ---------- 自訂捲軸：只代表目前這一頁 ----------
-  // Instagram 的動態是一條很長的清單（只顯示畫面附近的貼文），沒辦法真的切成獨立的頁面，
-  // 瀏覽器的捲軸會反映整條清單的位置，翻頁後不會回到最上面。
-  // 所以在「貼文」模式藏起瀏覽器的捲軸（style.css），改顯示這個捲軸：
-  // 頂端 = 本頁第一篇（第 1 頁是頁面最上方），底端 = 分頁按鈕完整出現的位置。
-  // 本頁第一篇或分頁按鈕不在頁面上時，用最後一次量到的位置。
-  let barMin = null; // 本頁可捲範圍的頂端（頁面座標）
-  let barMax = null; // 本頁可捲範圍的底端
-  let barGeom = null; // 最後一次畫捲軸時的 { lo, hi, track, thumbH }
-  let barPending = false;
-
-  function ensureBar() {
-    let bar = document.getElementById("igc-scrollbar");
-    if (bar) return bar;
-    bar = document.createElement("div");
-    bar.id = "igc-scrollbar";
-    const thumb = document.createElement("div");
-    thumb.id = "igc-scrollbar-thumb";
-    bar.appendChild(thumb);
-    // 拖曳滑桿
-    thumb.addEventListener("mousedown", (e) => {
-      if (e.button !== 0 || !barGeom) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const { lo, hi, track, thumbH } = barGeom;
-      const startY = e.clientY;
-      const startScroll = window.scrollY;
-      const perPx = (hi - lo) / Math.max(1, track - thumbH);
-      bar.classList.add("igc-dragging");
-      const move = (ev) => {
-        const y = Math.min(hi, Math.max(lo, startScroll + (ev.clientY - startY) * perPx));
-        window.scrollTo({ top: y, behavior: "instant" });
-      };
-      const up = () => {
-        bar.classList.remove("igc-dragging");
-        window.removeEventListener("mousemove", move, true);
-        window.removeEventListener("mouseup", up, true);
-      };
-      window.addEventListener("mousemove", move, true);
-      window.addEventListener("mouseup", up, true);
-    });
-    // 點滑桿以外的地方：往那個方向捲一個畫面
-    bar.addEventListener("mousedown", (e) => {
-      if (e.button !== 0 || e.target !== bar || !barGeom) return;
-      e.preventDefault();
-      const thumbTop = thumb.getBoundingClientRect().top;
-      const step = window.innerHeight * 0.9 * (e.clientY < thumbTop ? -1 : 1);
-      const { lo, hi } = barGeom;
-      window.scrollTo({ top: Math.min(hi, Math.max(lo, window.scrollY + step)), behavior: "instant" });
-    });
-    document.body.appendChild(bar);
-    return bar;
+      if (!p) {
+        p = { id };
+        postById.set(id, p);
+        posts.push(p);
+      }
+      p.img = coverImage(a) || p.img;
+      p.user = postUser(a) || p.user;
+      Object.assign(p, readCounts(a));
+      p.video = p.video || !!a.querySelector("video");
+      p.carousel =
+        p.carousel || !!a.querySelector('button[aria-label="下一步"], button[aria-label="Next"]');
+      const t = a.querySelector("time[datetime]");
+      if (t) p.time = Date.parse(t.getAttribute("datetime"));
+      p.y = Math.round(a.getBoundingClientRect().top + window.scrollY);
+    }
   }
 
-  function updateBar() {
-    if (!document.body || !document.documentElement.classList.contains("igc-paged")) return;
-    if (jumping) return; // 翻頁捲動中，翻完再畫
-    const bar = ensureBar();
-    const thumb = bar.firstElementChild;
-    const { min, max } = scrollRange();
-    if (min !== null) barMin = min;
-    if (max !== null) barMax = max;
-    const lo = feedPage === 0 ? 0 : barMin !== null ? barMin : 0;
-    const docMax = document.documentElement.scrollHeight - window.innerHeight;
-    const hi = Math.max(lo, barMax !== null ? barMax : docMax);
-    const span = Math.max(1, hi - lo);
-    const track = bar.clientHeight;
-    const thumbH = Math.min(track, Math.max(40, (track * window.innerHeight) / (span + window.innerHeight)));
-    const ratio = Math.min(1, Math.max(0, (window.scrollY - lo) / span));
-    thumb.style.height = Math.round(thumbH) + "px";
-    thumb.style.transform = "translateY(" + Math.round(ratio * (track - thumbH)) + "px)";
-    barGeom = { lo, hi, track, thumbH };
+  const feedEnded = () => !!findText(document.body, MARKER_RE); // 「沒有其他新動態了」
+
+  // 背景動態裡的影片看不見，不要讓它們一直播
+  function pauseHiddenVideos() {
+    for (const v of document.querySelectorAll("main video")) {
+      if (!v.paused) v.pause();
+    }
   }
 
-  function scheduleBar() {
-    if (barPending) return;
-    barPending = true;
-    requestAnimationFrame(() => {
-      barPending = false;
-      updateBar();
-      placeFloatingToggle(); // Instagram 調整預留空白時，第一篇的位置會變
-    });
-  }
-  window.addEventListener("scroll", scheduleBar, { passive: true });
-  window.addEventListener("resize", scheduleBar);
-
-  function createPager() {
-    const pager = document.createElement("nav");
-    pager.id = "igc-pager";
-    pager.innerHTML =
-      '<button type="button" data-go="-1">← 上一頁</button>' +
-      "<span></span>" +
-      '<button type="button" data-go="1">下一頁 →</button>';
-    pager.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-go]");
-      if (btn && !btn.disabled) goToPage(feedPage + Number(btn.dataset.go));
-    });
-    return pager;
+  // 在背景往下捲，直到記下 n 篇（或動態已到底）
+  async function loadUntil(n) {
+    if (busy) return;
+    busy = true;
+    try {
+      for (let i = 0; i < 250 && posts.length < n; i++) {
+        collect();
+        if (posts.length >= n || feedEnded()) break;
+        window.scrollBy(0, Math.round(window.innerHeight * 0.8));
+        await sleep(120);
+        renderGrid();
+      }
+      collect();
+    } finally {
+      busy = false;
+      renderGrid();
+    }
   }
 
-  // 今天和更早的貼文之間畫一條紅線（和 YouTube 訂閱內容一樣）：標在線下第一篇上，線上那篇不用動。
+  function findArticle(id) {
+    return [...document.querySelectorAll("main article")].find((a) => postId(a) === id) || null;
+  }
+
+  // 打開貼文：背景動態捲到那一篇（Instagram 只留畫面附近的貼文），再按它的「回應」按鈕
+  async function openPost(id) {
+    const p = postById.get(id);
+    if (!p || busy) return;
+    busy = true;
+    try {
+      let art = findArticle(id);
+      if (!art && p.y !== undefined) {
+        window.scrollTo(0, Math.max(0, p.y - 100));
+        await sleep(150);
+        art = findArticle(id);
+      }
+      // 還是不在：看頁面上的貼文排在它前面還是後面，往那個方向找
+      const idx = posts.indexOf(p);
+      for (let i = 0; !art && i < 60; i++) {
+        const shown = [...document.querySelectorAll("main article")]
+          .map((a) => posts.indexOf(postById.get(postId(a))))
+          .filter((x) => x >= 0);
+        const down = !shown.length || Math.max(...shown) < idx;
+        window.scrollBy(0, (down ? 1 : -1) * Math.round(window.innerHeight * 0.8));
+        await sleep(120);
+        art = findArticle(id);
+      }
+      collect();
+      const icon =
+        art &&
+        [...art.querySelectorAll("section svg[aria-label]")].find((s) =>
+          COMMENT_LABEL_RE.test(s.getAttribute("aria-label"))
+        );
+      const btn = icon && (icon.closest('[role="button"], button, a') || icon.parentElement);
+      if (btn) {
+        openedAt = Date.now();
+        btn.click();
+      }
+      else location.assign("/p/" + id + "/"); // 關閉留言的貼文沒有「回應」按鈕：改開貼文頁
+    } finally {
+      busy = false;
+    }
+  }
+
+  // 今天和更早的貼文之間的紅線（和 YouTube 訂閱內容一樣）：回傳線下第一篇。
   // 貼文的 <time datetime> 是確切時間，直接比今天 00:00。
   // 動態大致照時間排，偶爾有一兩篇排錯：找一個位置，讓線上「更早」加上線下「今天」的貼文最少。
-  function postedToday(article) {
-    const t = article.querySelector("time[datetime]");
-    if (!t) return null;
-    const ms = Date.parse(t.getAttribute("datetime"));
-    return Number.isNaN(ms) ? null : ms >= new Date().setHours(0, 0, 0, 0);
-  }
-
-  function markTodayLine(articles) {
-    const items = articles
-      .filter((a) => a.dataset.igcRank !== undefined)
-      .sort((a, b) => a.dataset.igcRank - b.dataset.igcRank);
-    const flags = items.map(postedToday);
+  function firstEarlierPost() {
+    const midnight = new Date().setHours(0, 0, 0, 0);
+    const flags = posts.map((p) => (p.time === undefined || Number.isNaN(p.time) ? null : p.time >= midnight));
     let after = flags.filter((f) => f === true).length;
     let before = 0;
     let best = null;
     let bestErr = Infinity;
     let seenToday = false;
-    for (let i = 0; i < items.length; i++) {
+    for (let i = 0; i < posts.length; i++) {
       if (seenToday && flags[i] === false && before + after < bestErr) {
         bestErr = before + after;
         best = i;
@@ -408,115 +249,118 @@
         before++;
       }
     }
-    const firstEarlier = best === null ? null : items[best];
-    for (const el of document.querySelectorAll("main article.igc-first-earlier")) {
-      if (el !== firstEarlier) el.classList.remove("igc-first-earlier");
-    }
-    if (firstEarlier) firstEarlier.classList.add("igc-first-earlier");
+    return best === null ? null : posts[best];
   }
 
-  function paginateFeed() {
-    if (feedHref !== location.href) {
-      feedHref = location.href;
-      barMin = barMax = null;
-      feedOrder = [];
-      feedPage = 0;
-    }
-    const start = feedPage * PAGE_SIZE;
-    const end = start + PAGE_SIZE;
-    // 廣告、建議貼文有時要等內容載入後才認得出來、被 filterFeed 藏起來；
-    // 已經算進去的就拿掉，後面的貼文往前遞補，否則那一篇的位置會空著、分頁按鈕出不來
-    for (const a of document.querySelectorAll("main article.igc-hidden")) {
-      const i = feedOrder.indexOf(postId(a));
-      if (i !== -1) feedOrder.splice(i, 1);
-    }
-    const articles = [...document.querySelectorAll("main article")].filter(
-      (a) => !a.classList.contains("igc-hidden")
+  // 圖示（線條風格，和 Instagram 一致）
+  const ICON_VIDEO =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>';
+  const ICON_CAROUSEL =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="13" height="13" rx="2" fill="currentColor"/>' +
+    '<path d="M4 16V6a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  const ICON_HEART =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.1A4.4 4.4 0 0 1 12 7.6a4.4 4.4 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z" fill="currentColor"/></svg>';
+  const ICON_COMMENT =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.6a8.4 8.4 0 0 1-12.3 7.5L3.5 20.5l1.4-4.6a8.4 8.4 0 1 1 15.6-4.3z" fill="currentColor"/></svg>';
+
+  function ensureGrid() {
+    let grid = document.getElementById("igc-grid");
+    if (grid) return grid;
+    grid = document.createElement("div");
+    grid.id = "igc-grid";
+    grid.tabIndex = -1; // 讓空白鍵、方向鍵捲動格狀版面
+    grid.innerHTML =
+      '<div id="igc-grid-inner"><div id="igc-grid-head"></div><div id="igc-grid-tiles"></div>' +
+      '<nav id="igc-pager"><button type="button" data-go="-1">← 上一頁</button><span></span>' +
+      '<button type="button" data-go="1">下一頁 →</button></nav></div>';
+    grid.addEventListener("click", (e) => {
+      const tile = e.target.closest(".igc-tile");
+      if (tile) {
+        e.preventDefault();
+        openPost(tile.dataset.id);
+        return;
+      }
+      const btn = e.target.closest("#igc-pager button[data-go]");
+      if (btn && !btn.disabled) {
+        feedPage = Math.max(0, feedPage + Number(btn.dataset.go));
+        grid.scrollTop = 0;
+        renderGrid();
+      }
+    });
+    document.body.appendChild(grid);
+    grid.focus({ preventScroll: true });
+    return grid;
+  }
+
+  function tileHtml(p) {
+    const esc = (s) => String(s || "").replace(/[&<>"]/g, (c) => "&#" + c.charCodeAt(0) + ";");
+    const badge = p.video ? ICON_VIDEO : p.carousel ? ICON_CAROUSEL : "";
+    return (
+      '<a class="igc-tile" href="/p/' + esc(p.id) + '/" data-id="' + esc(p.id) + '">' +
+      (p.img ? '<img src="' + esc(p.img) + '" alt="" draggable="false">' : "") +
+      (badge ? '<span class="igc-tile-badge">' + badge + "</span>" : "") +
+      '<span class="igc-tile-info">' +
+      (p.user ? '<span class="igc-tile-user">' + esc(p.user) + "</span>" : "") +
+      '<span class="igc-tile-stats">' +
+      (p.likes ? "<span>" + ICON_HEART + esc(p.likes) + "</span>" : "") +
+      (p.comments ? "<span>" + ICON_COMMENT + esc(p.comments) + "</span>" : "") +
+      "</span></span></a>"
     );
-    let lastOnPage = null; // 本頁在頁面上的最後一篇
-    let lastRank = -1;
-    pageFirst = null;
-    pageLast = null;
-    for (const a of articles) {
-      const id = postId(a);
-      let rank = id ? feedOrder.indexOf(id) : -1;
-      if (id && rank === -1) {
-        rank = feedOrder.length;
-        feedOrder.push(id);
-      }
-      // 還沒載入完、看不出是哪一篇：這一頁還沒滿就當成本頁，滿了就當成後面的頁
-      if (!id) rank = feedOrder.length < end ? start : end;
-      const onPage = rank >= start && rank < end;
-      a.classList.toggle("igc-other-page", !onPage);
-      a.dataset.igcRank = rank;
-      if (onPage && id && rank === start) pageFirst = a;
-      if (onPage && rank >= lastRank) {
-        lastRank = rank;
-        lastOnPage = a;
-      }
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById("igc-grid");
+    if (!grid) return;
+    const start = feedPage * PAGE_SIZE;
+    const items = posts.slice(start, start + PAGE_SIZE);
+    const ended = feedEnded();
+    const loadingPage = items.length < PAGE_SIZE && !ended;
+    const earlier = firstEarlierPost();
+    const sig = JSON.stringify([feedPage, ended, loadingPage, earlier && earlier.id, items]);
+    if (sig === gridSig) return;
+    gridSig = sig;
+
+    let html = "";
+    for (const p of items) {
+      if (p === earlier) html += '<div class="igc-grid-today">更早</div>';
+      html += tileHtml(p);
     }
+    if (loadingPage) html += '<div class="igc-grid-loading">載入中…</div>';
+    else if (!items.length) html += '<div class="igc-grid-loading">沒有更多貼文了</div>';
+    grid.querySelector("#igc-grid-tiles").innerHTML = html;
 
-    markTodayLine(articles);
-
-    document.documentElement.classList.add("igc-paged");
-    scheduleBar();
-    const pager = document.getElementById("igc-pager") || createPager();
-    const pageFull = feedOrder.length >= end;
-    const feedEnded = !!findText(document.body, MARKER_RE); // 「沒有其他新動態了」
-    const lastPage = feedEnded && feedOrder.length <= end;
-    // 本頁已滿（或已是最後一頁）而且最後一篇在頁面上：分頁按鈕對齊它的正下方
-    if (!pager.isConnected) document.body.appendChild(pager);
-    if (lastOnPage && (pageFull || lastPage) && lastRank === Math.min(end, feedOrder.length) - 1) {
-      pageLast = lastOnPage;
-      placePager();
-    } else {
-      pager.hidden = true;
-      // 保險：本頁已滿，但畫面上只剩後面頁（看不見）的貼文，表示已經捲過頭了：
-      // 往回捲一段，直到本頁最後一篇和分頁按鈕重新出現
-      if (pageFull && !jumping) {
-        const inView = articles.filter((a) => {
-          const r = a.getBoundingClientRect();
-          return r.bottom > 0 && r.top < window.innerHeight;
-        });
-        if (inView.length && inView.every((a) => Number(a.dataset.igcRank) >= end)) {
-          window.scrollBy(0, -window.innerHeight);
-        }
-      }
-    }
-
-    const [prev, label, next] = pager.children;
+    const [prev, label, next] = grid.querySelector("#igc-pager").children;
+    const lastPage = ended && posts.length <= start + PAGE_SIZE;
     prev.disabled = feedPage === 0;
     label.textContent = "第 " + (feedPage + 1) + " 頁";
-    next.disabled = !pageFull || lastPage;
+    next.disabled = lastPage || loadingPage;
     next.textContent = lastPage ? "沒有更多貼文了" : "下一頁 →";
   }
 
-  // ---------- 首頁「貼文」模式：隱藏上方的「← 追蹤中」標題 ----------
-  // 我們的切換按鈕已經能切換模式，Instagram 自己的標題（返回首頁的連結）就不需要了。
-  // 只在 <main> 裡找：頁面剛載入時 Instagram 會先把內容放在隱藏的暫存區塊，不要動到那裡，
-  // 也不會找到側邊欄等其他地方的「追蹤中」。
-  // 從文字往上找，取「只含這個標題列」的最外層：不含貼文、不含我們的切換按鈕、文字很短。
-  // 回傳被藏起來的標題區塊（切換按鈕會放在它的位置），找不到則回傳 null。
-  const FOLLOWING_RE = /^(追蹤中|Following)$/;
-  function hideFollowingHeader() {
-    const main = document.querySelector("main");
-    if (!main) return null;
-    const w = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
-    let n;
-    while ((n = w.nextNode())) {
-      if (!FOLLOWING_RE.test(n.textContent.trim())) continue;
-      let el = n.parentElement;
-      if (el.closest("article, #igc-toggle")) continue; // 貼文裡的「追蹤中」按鈕不算
-      let block = el;
-      for (el = el.parentElement; el && el !== main; el = el.parentElement) {
-        if (el.querySelector("article, #igc-toggle, canvas")) break;
-        if (el.textContent.trim().length > 20) break;
-        block = el;
-      }
-      hide(block);
-      return block;
+  function showGrid() {
+    if (feedHref !== location.href) {
+      feedHref = location.href;
+      feedPage = 0;
+      posts = [];
+      postById = new Map();
+      gridSig = "";
     }
-    return null;
+    document.documentElement.classList.add("igc-grid");
+    ensureGrid();
+    pauseHiddenVideos();
+    collect();
+    renderGrid();
+    // 本頁和下一頁還沒載滿：在背景繼續捲動載入
+    if (!busy && !feedEnded() && posts.length < (feedPage + 1 + PREFETCH_PAGES) * PAGE_SIZE) {
+      loadUntil((feedPage + 1 + PREFETCH_PAGES) * PAGE_SIZE);
+    }
+  }
+
+  function hideGrid() {
+    const grid = document.getElementById("igc-grid");
+    if (grid) grid.remove();
+    document.documentElement.classList.remove("igc-grid");
+    gridSig = "";
   }
 
   // ---------- 貼文頁：移除「更多「某帳號」的貼文」影片牆 ----------
@@ -641,7 +485,7 @@
     return anchor;
   }
 
-  function updateToggle(p, storiesOnly, header) {
+  function updateToggle(p, storiesOnly) {
     const showing = homeShowing(p, storiesOnly);
     togglePath = p;
     toggleStoriesOnly = storiesOnly;
@@ -659,17 +503,14 @@
         '<a data-mode="stories" href="/">限時動態</a>' +
         '<a data-mode="posts" href="/?variant=following">貼文</a>';
     }
-    if (!storiesOnly && feedPage > 0) {
-      // 貼文模式第 2 頁以後：本頁第一篇正上方
-      if (box.parentElement !== document.body) document.body.appendChild(box);
-      box.classList.add("igc-toggle-floating");
-      placeFloatingToggle();
+    box.hidden = false;
+    if (!storiesOnly) {
+      // 貼文模式：格狀版面的最上方
+      const head = document.getElementById("igc-grid-head");
+      if (head && box.parentElement !== head) head.appendChild(box);
     } else {
-      // 限時動態模式：限時動態列上方；貼文模式第 1 頁：被藏起來的「← 追蹤中」標題的位置（沒有就放第一篇貼文上方）
-      box.classList.remove("igc-toggle-floating");
-      box.hidden = false;
-      box.style.top = box.style.left = "";
-      const spot = storiesOnly ? toggleSpot(homeAnchor) : header || homeAnchor;
+      // 限時動態模式：限時動態列上方
+      const spot = toggleSpot(homeAnchor);
       if (box.nextElementSibling !== spot) spot.before(box);
     }
     const mode = storiesOnly ? "stories" : "posts";
@@ -752,12 +593,16 @@
     const variant = new URLSearchParams(location.search).get("variant");
     // 首頁預設 = 只有限時動態；?variant=following（或 past_posts）= 貼文模式
     const storiesOnly = p === "/" && variant !== "following" && variant !== "past_posts";
-    // 分頁按鈕掛在 <body> 上：離開首頁「貼文」模式就移除
-    if (p !== "/" || storiesOnly) {
-      const pager = document.getElementById("igc-pager");
-      if (pager) pager.remove();
-      document.documentElement.classList.remove("igc-scroll-lock", "igc-paged");
-    }
+    // 格狀版面：只在首頁「貼文」模式顯示。
+    // 從格狀版面打開的貼文（Instagram 的對話框，網址暫時變成 /p/…）開著時保留，關掉後回到原本那一頁
+    const postsMode = p === "/" && !storiesOnly;
+    // （剛按下去時網址先變、對話框晚一點才出現，這段時間也要保留，否則格狀版面會被拿掉、回來時捲動位置歸零）
+    const overGrid =
+      !postsMode &&
+      POST_PAGE_RE.test(p) &&
+      document.getElementById("igc-grid") &&
+      (document.querySelector('[role="dialog"]') || Date.now() - openedAt < 3000);
+    if (!postsMode && !overGrid) hideGrid();
     const explore = /^\/explore\/?$/.test(p);
     const root = document.documentElement;
     // 必須在拿掉 class 之前標記，中間不能有一次重繪
@@ -778,14 +623,12 @@
     else if (storiesOnly) trackSeen(HOME_POSTS_SEL);
     releaseLinger();
     // 先標記首頁貼文區塊，按鈕才能用它判斷首頁是否已載入
-    let header = null;
     if (storiesOnly) markHomePosts();
-    else if (p === "/") {
+    else if (postsMode) {
       filterFeed();
-      paginateFeed();
-      header = hideFollowingHeader();
+      showGrid();
     }
-    updateToggle(p, storiesOnly, header);
+    updateToggle(p, storiesOnly);
   }
 
   // 任何一次檢查出錯都只記錄下來，不能讓整個擋除功能停擺
