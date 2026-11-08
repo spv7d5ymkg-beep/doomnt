@@ -31,6 +31,19 @@ html.igc-stories-only main article {
   display: none !important;
 }
 
+/* 貼文之間的分隔線：和 YouTube 清單的分隔線一樣（淺色 10% 黑、深色 15% 白）
+   線放在兩篇正中間：Instagram 原本在說明文字下方留了 36px，改成上下各約 18px */
+main article {
+  padding-top: 18px !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+main article > :last-child {
+  margin-bottom: 2px !important;
+}
+html.__fb-dark-mode main article {
+  border-bottom-color: rgba(255, 255, 255, 0.15) !important;
+}
+
 /* 限時動態下方的圖片（只在「限時動態」模式顯示） */
 #igc-meme {
   display: none;
