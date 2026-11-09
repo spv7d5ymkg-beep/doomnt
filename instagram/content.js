@@ -639,12 +639,14 @@
   // Instagram 的貼文對話框把影片放在 4:5 的框裡（padding-bottom 撐出比例的那層），
   // 9:16 的直式影片只能縮小塞進去，上下留一大塊黑邊。
   // 改成用影片自己的比例：框改成影片的比例，媒體欄寬度改成「欄高 × 影片寬高比」，讓影片填滿整個高度。
+  // 影片尺寸要等 loadedmetadata 才知道；在那之前先把框藏起來，不會先看到黑邊再跳一下。
   // 輪播貼文（多張）不動，免得其他張的版面跑掉。
+  const FIT_WAIT_MAX = 2000; // 影片資訊一直沒載入，最多藏這麼久
+  function showBox(box) {
+    if (box.style.visibility) box.style.removeProperty("visibility");
+  }
   function fitDialogVideos() {
     for (const v of document.querySelectorAll('[role="dialog"] video')) {
-      const vw = v.videoWidth;
-      const vh = v.videoHeight;
-      if (!vw || !vh) continue;
       // 撐比例的那層：height 0、靠 padding-bottom 撐高
       let box = null;
       let col = null;
@@ -662,13 +664,29 @@
           break;
         }
       }
-      if (!box || !col || carousel) continue;
+      if (!box || !col || carousel) {
+        if (box) showBox(box);
+        continue;
+      }
+      const vw = v.videoWidth;
+      const vh = v.videoHeight;
+      if (!vw || !vh) {
+        if (!box.dataset.igcWait) box.dataset.igcWait = String(Date.now());
+        if (Date.now() - Number(box.dataset.igcWait) < FIT_WAIT_MAX) {
+          box.style.setProperty("visibility", "hidden", "important");
+        } else showBox(box);
+        continue;
+      }
+      delete box.dataset.igcWait; // 下一篇貼文重用同一個框時重新計時
       const ratio = (vh / vw) * 100;
       const want = ratio.toFixed(3) + "%";
-      // 只放大直式影片：框本來就夠高（橫式、正方形）就不動
       if (box.dataset.igcFit !== want) {
+        // 只放大直式影片：框本來就夠高（橫式、正方形）就不動
         const boxRatio = (parseFloat(getComputedStyle(box).paddingBottom) / box.clientWidth) * 100;
-        if (ratio <= boxRatio + 1) continue;
+        if (ratio <= boxRatio + 1) {
+          showBox(box);
+          continue;
+        }
         box.dataset.igcFit = want;
         box.style.setProperty("padding-bottom", want, "important");
       }
@@ -677,8 +695,17 @@
         col.style.setProperty("max-width", width, "important");
         col.style.setProperty("width", width, "important");
       }
+      showBox(box);
     }
   }
+  // 影片資訊一載入就馬上調整，不等下一次檢查（loadedmetadata 不會冒泡，要在捕獲階段聽）
+  document.addEventListener(
+    "loadedmetadata",
+    (e) => {
+      if (e.target.tagName === "VIDEO" && e.target.closest('[role="dialog"]')) fitDialogVideos();
+    },
+    true
+  );
 
   function check() {
     const p = location.pathname;
@@ -788,7 +815,11 @@
   window.addEventListener("popstate", safeCheck);
   // 網址一變（包含 Instagram 內部的 pushState）就立刻檢查，不等下一次輪詢
   if (window.navigation) navigation.addEventListener("currententrychange", safeCheck);
-  new MutationObserver(schedule).observe(document.documentElement, {
+  new MutationObserver(() => {
+    // 對話框影片要在第一次畫出來之前就藏好，不能等 requestAnimationFrame
+    if (document.querySelector('[role="dialog"] video')) fitDialogVideos();
+    schedule();
+  }).observe(document.documentElement, {
     childList: true,
     subtree: true,
   });
