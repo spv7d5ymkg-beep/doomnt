@@ -79,6 +79,7 @@
   let gridSig = ""; // 上次畫的內容，沒變就不重畫
   let openedAt = 0; // 最近一次從格狀版面打開貼文的時間
   let dialogSeenAt = 0; // 最近一次看到貼文對話框的時間
+  let peekArt = null; // 用自己的浮動視窗顯示的貼文（關閉留言的貼文，見 openPeek）
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -167,6 +168,7 @@
   // 背景動態裡的影片看不見，不要讓它們一直播
   function pauseHiddenVideos() {
     for (const v of document.querySelectorAll("main video")) {
+      if (peekArt && peekArt.contains(v)) continue;
       if (!v.paused) v.pause();
     }
   }
@@ -238,7 +240,8 @@
       if (btn) {
         openedAt = Date.now();
         btn.click();
-      } else location.assign("/p/" + id + "/"); // 關閉留言的貼文沒有「回應」按鈕：改開貼文頁
+      } else if (art) openPeek(art); // 關閉留言的貼文沒有「回應」按鈕，打不開 Instagram 的對話框
+      else location.assign("/p/" + id + "/");
     } finally {
       busy = false;
     }
@@ -262,6 +265,44 @@
       busy = false;
     }
   }
+
+  // ---------- 關閉留言的貼文：自己的浮動視窗 ----------
+  // 這種貼文沒有「回應」按鈕，Instagram 不會開對話框（點時間只會進貼文頁）。
+  // 改把背景動態裡那一篇 <article> 本身固定在畫面中間顯示（style.css 的 [data-igc-peek]），
+  // 後面加一層半透明遮罩；按遮罩、× 或 Esc 關閉。貼文是 Instagram 自己的元件，按讚、影片、說明文字都照常運作。
+  // 開著時背景動態不捲動，否則 Instagram 可能把這篇移除。
+  function openPeek(art) {
+    closePeek();
+    peekArt = art;
+    art.setAttribute("data-igc-peek", "");
+    const shade = document.createElement("div");
+    shade.id = "igc-peek";
+    shade.innerHTML = '<button type="button" aria-label="Close">×</button>';
+    shade.addEventListener("click", closePeek);
+    document.body.appendChild(shade);
+    document.documentElement.classList.add("igc-peeking");
+    art.scrollTop = 0;
+  }
+  function closePeek() {
+    if (!peekArt) return;
+    const art = peekArt;
+    peekArt = null;
+    for (const v of art.querySelectorAll("video")) if (!v.paused) v.pause();
+    art.removeAttribute("data-igc-peek");
+    document.getElementById("igc-peek")?.remove();
+    document.documentElement.classList.remove("igc-peeking");
+    document.getElementById("igc-grid")?.focus({ preventScroll: true });
+  }
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      if (peekArt && e.key === "Escape") {
+        e.stopPropagation();
+        closePeek();
+      }
+    },
+    true
+  );
 
   // 圖示（線條風格，和 Instagram 一致）
   const ICON_VIDEO =
@@ -389,7 +430,7 @@
     pauseHiddenVideos();
     collect();
     renderGrid();
-    if (busy) return;
+    if (busy || peekArt) return;
     // 本頁有還沒有圖片的格子：先補圖片
     const items = posts.slice(feedPage * PAGE_SIZE, (feedPage + 1) * PAGE_SIZE);
     if (items.some((p) => !p.img && (p.imgTries || 0) < 3)) {
@@ -735,7 +776,16 @@
       POST_PAGE_RE.test(p) &&
       document.getElementById("igc-grid") &&
       (now - dialogSeenAt < 1000 || now - openedAt < 3000);
+    if (peekArt && (!postsMode || !peekArt.isConnected)) closePeek();
     if (!postsMode && !overGrid) hideGrid();
+    // 記下「從格狀版面打開的對話框」這一筆瀏覽紀錄（見 skipDialogEntry）
+    if (overGrid && window.navigation && document.querySelector('[role="dialog"]')) {
+      const key = navigation.currentEntry && navigation.currentEntry.key;
+      if (key && !dialogEntries.has(key)) {
+        dialogEntries.add(key);
+        saveDialogEntries();
+      }
+    }
     const explore = /^\/explore\/?$/.test(p);
     const root = document.documentElement;
     // 必須在拿掉 class 之前標記，中間不能有一次重繪
@@ -809,6 +859,33 @@
   for (const type of ["click", "auxclick"]) {
     window.addEventListener(type, blockReelsClick, true);
   }
+
+  // ---------- 返回時跳過對話框那一筆紀錄 ----------
+  // 從格狀版面打開貼文（網址變 /p/…），在對話框裡點進某人的個人頁、Reels，再按上一頁回來時，
+  // 會先回到 /p/… 那一筆；Instagram 這時不會再開對話框，而是顯示整頁貼文，格狀版面就不見了。
+  // 記下這些紀錄（navigation entry 的 key，存在 sessionStorage，重新整理也記得），
+  // 回到其中一筆時自動再往同一個方向走一步：上一頁 → 直接回到格狀版面。
+  const DIALOG_ENTRIES_KEY = "igcDialogEntries";
+  let dialogEntries;
+  try {
+    dialogEntries = new Set(JSON.parse(sessionStorage.getItem(DIALOG_ENTRIES_KEY) || "[]"));
+  } catch {
+    dialogEntries = new Set();
+  }
+  function saveDialogEntries() {
+    try {
+      sessionStorage.setItem(DIALOG_ENTRIES_KEY, JSON.stringify([...dialogEntries].slice(-50)));
+    } catch {}
+  }
+  function skipDialogEntry(e) {
+    if (e.navigationType !== "traverse") return;
+    const cur = navigation.currentEntry;
+    if (!cur || !dialogEntries.has(cur.key)) return;
+    const back = e.from && e.from.index > cur.index;
+    if (back && navigation.canGoBack) navigation.back();
+    else if (!back && navigation.canGoForward) navigation.forward();
+  }
+  if (window.navigation) navigation.addEventListener("currententrychange", skipDialogEntry);
 
   // 先掛好輪詢與監聽，最後才做第一次檢查
   setInterval(safeCheck, 250);
