@@ -635,6 +635,51 @@
   }
 
   // ---------- 主檢查 ----------
+  // ---------- 對話框裡的直式影片放大 ----------
+  // Instagram 的貼文對話框把影片放在 4:5 的框裡（padding-bottom 撐出比例的那層），
+  // 9:16 的直式影片只能縮小塞進去，上下留一大塊黑邊。
+  // 改成用影片自己的比例：框改成影片的比例，媒體欄寬度改成「欄高 × 影片寬高比」，讓影片填滿整個高度。
+  // 輪播貼文（多張）不動，免得其他張的版面跑掉。
+  function fitDialogVideos() {
+    for (const v of document.querySelectorAll('[role="dialog"] video')) {
+      const vw = v.videoWidth;
+      const vh = v.videoHeight;
+      if (!vw || !vh) continue;
+      // 撐比例的那層：height 0、靠 padding-bottom 撐高
+      let box = null;
+      let col = null;
+      let carousel = false;
+      for (let e = v.parentElement; e && !e.matches('[role="dialog"]'); e = e.parentElement) {
+        if (e.tagName === "LI") carousel = true;
+        if (!box) {
+          const pb = parseFloat(getComputedStyle(e).paddingBottom);
+          if (pb > 0 && e.clientHeight - pb < 2) box = e;
+          continue;
+        }
+        // 媒體欄：第一個比框高出不少的祖先
+        if (e.getBoundingClientRect().height > box.getBoundingClientRect().height + 20) {
+          col = e;
+          break;
+        }
+      }
+      if (!box || !col || carousel) continue;
+      const ratio = (vh / vw) * 100;
+      const want = ratio.toFixed(3) + "%";
+      // 只放大直式影片：框本來就夠高（橫式、正方形）就不動
+      if (box.dataset.igcFit !== want) {
+        const boxRatio = (parseFloat(getComputedStyle(box).paddingBottom) / box.clientWidth) * 100;
+        if (ratio <= boxRatio + 1) continue;
+        box.dataset.igcFit = want;
+        box.style.setProperty("padding-bottom", want, "important");
+      }
+      const width = Math.floor((col.clientHeight * vw) / vh) + "px";
+      if (col.style.maxWidth !== width) {
+        col.style.setProperty("max-width", width, "important");
+        col.style.setProperty("width", width, "important");
+      }
+    }
+  }
+
   function check() {
     const p = location.pathname;
     if (REELS_BLOCK_RE.test(p)) {
@@ -647,6 +692,7 @@
       return;
     }
     if (POST_PAGE_RE.test(p)) hideMorePosts();
+    fitDialogVideos();
     const variant = new URLSearchParams(location.search).get("variant");
     // 首頁預設 = 只有限時動態；?variant=following（或 past_posts）= 貼文模式
     const storiesOnly = p === "/" && variant !== "following" && variant !== "past_posts";
