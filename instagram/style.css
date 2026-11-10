@@ -276,3 +276,12 @@ html.igc-hide-suggest [data-igc-suggest-row] {
   box-sizing: border-box !important;
   padding-left: var(--igc-side, 0px) !important;
 }
+
+/* 右下角的「訊息」浮動按鈕（content.js 的 markDm，彈出視窗可以關掉） */
+html.igc-hide-dm [data-igc-dm] {
+  display: none !important;
+}
+/* 貼文對話框開著時不提高，留在對話框的遮罩底下（和 Instagram 原本一樣） */
+html.igc-grid:not(.igc-hide-dm):not(:has([role="dialog"])) [data-igc-dm] {
+  z-index: 5 !important;
+}

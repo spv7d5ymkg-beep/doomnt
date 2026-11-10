@@ -378,20 +378,42 @@
   // 右側欄和動態欄是同一個置中排列的 flex 列的兩個子元素；找到右側欄（裡面有「© 年份 INSTAGRAM FROM META」，
   // 不管介面語言都一樣），標上 data-igc-suggest，藏起來後動態欄自然置中。
   // 這一列從畫面最左邊開始（左側選單蓋在上面），左邊補上選單的寬度，才會在選單右邊的空間置中。
-  let hideSuggest = true;
-  const setSuggestClass = () =>
-    document.documentElement.classList.toggle("igc-hide-suggest", hideSuggest);
-  setSuggestClass();
-  chrome.storage.local.get({ igSuggestHidden: true }, (r) => {
-    hideSuggest = r.igSuggestHidden;
-    setSuggestClass();
+  // 彈出視窗的兩個開關（預設都藏起來）：設定名稱 → <html> 上的 class
+  const HIDE_SETTINGS = { igSuggestHidden: "igc-hide-suggest", igDmHidden: "igc-hide-dm" };
+  const applyHide = (key, on) => document.documentElement.classList.toggle(HIDE_SETTINGS[key], on !== false);
+  for (const key in HIDE_SETTINGS) applyHide(key, true);
+  chrome.storage.local.get({ igSuggestHidden: true, igDmHidden: true }, (r) => {
+    for (const key in HIDE_SETTINGS) applyHide(key, r[key]);
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes.igSuggestHidden) {
-      hideSuggest = changes.igSuggestHidden.newValue;
-      setSuggestClass();
-    }
+    if (area !== "local") return;
+    for (const key in HIDE_SETTINGS) if (changes[key]) applyHide(key, changes[key].newValue);
   });
+  // ---------- 右下角的「訊息」浮動按鈕 ----------
+  // 開關 igDmHidden（預設藏起來）。按鈕是 position: fixed 的一層，裡面是 role="button"；
+  // 用位置找（貼在畫面右下角），不靠文字，介面是哪種語言都找得到。標上 data-igc-dm。
+  // 顯示時：貼文模式的格狀版面（z-index 1）會蓋住它，因為外層有 z-index: 0 的區塊把它困在底下；
+  // 標上 .igc-unstack（style.css 只在格狀版面時生效），再把它的 z-index 提高，就會浮在格狀版面上面。
+  function markDm() {
+    let box = document.querySelector("[data-igc-dm]");
+    if (!box) {
+      for (const btn of document.querySelectorAll('body > div [role="button"]')) {
+        const fixed = btn.parentElement;
+        if (!fixed || !btn.querySelector("svg")) continue;
+        const r = btn.getBoundingClientRect();
+        if (!r.width || r.right < window.innerWidth * 0.7 || r.bottom < window.innerHeight * 0.75) continue;
+        if (getComputedStyle(fixed).position !== "fixed") continue;
+        box = fixed;
+        box.setAttribute("data-igc-dm", "");
+        break;
+      }
+      if (!box) return;
+    }
+    for (let up = box.parentElement; up && up !== document.body; up = up.parentElement) {
+      if (!up.classList.contains("igc-unstack") && getComputedStyle(up).zIndex !== "auto") up.classList.add("igc-unstack");
+    }
+  }
+
   function markSuggest() {
     const main = document.querySelector("main");
     if (!main) return;
@@ -803,6 +825,7 @@
     }
     if (POST_PAGE_RE.test(p)) hideMorePosts();
     if (p === "/") markSuggest();
+    markDm();
     fitDialogVideos();
     const variant = new URLSearchParams(location.search).get("variant");
     // 首頁預設 = 只有限時動態；?variant=following（或 past_posts）= 貼文模式

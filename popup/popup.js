@@ -9,14 +9,19 @@ box.addEventListener("change", () => {
   chrome.storage.local.set({ fourchan: box.checked });
 });
 
-// Instagram 首頁右側的推薦帳號（預設藏起來）
-const igBox = document.getElementById("igSuggest");
-chrome.storage.local.get({ igSuggestHidden: true }, ({ igSuggestHidden }) => {
-  igBox.checked = igSuggestHidden;
-});
-igBox.addEventListener("change", () => {
-  chrome.storage.local.set({ igSuggestHidden: igBox.checked });
-});
+// Instagram：首頁右側的推薦帳號、右下角的訊息按鈕（預設都藏起來）
+for (const [id, key] of [
+  ["igSuggest", "igSuggestHidden"],
+  ["igDm", "igDmHidden"],
+]) {
+  const el = document.getElementById(id);
+  chrome.storage.local.get({ [key]: true }, (r) => {
+    el.checked = r[key];
+  });
+  el.addEventListener("change", () => {
+    chrome.storage.local.set({ [key]: el.checked });
+  });
+}
 
 // 語言：選單顯示目前的語言（還沒選過就是跟著瀏覽器的那個），選了就存起來
 const select = document.getElementById("lang");

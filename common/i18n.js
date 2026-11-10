@@ -20,6 +20,8 @@ var doomntI18n = (() => {
       fourchanDesc: "藏起成人看板和 Misc（/pol/ 除外），熱門討論串只顯示 SFW",
       igSuggestTitle: "藏起 Instagram 推薦帳號",
       igSuggestDesc: "首頁右側的推薦帳號和上面你自己的帳號，其餘內容置中",
+      igDmTitle: "藏起 Instagram 訊息按鈕",
+      igDmDesc: "右下角的「訊息」浮動按鈕",
     },
     en: {
       prev: "← Previous",
@@ -36,6 +38,8 @@ var doomntI18n = (() => {
       fourchanDesc: "Hides adult boards and Misc (except /pol/); popular threads show SFW only",
       igSuggestTitle: "Hide Instagram suggestions",
       igSuggestDesc: "Hides suggested accounts and your account on the right of the homepage, and centers the rest",
+      igDmTitle: "Hide Instagram Messages button",
+      igDmDesc: "The floating Messages button in the bottom-right corner",
     },
   };
   const browserLang = /^zh/i.test(navigator.language) ? "zh" : "en";

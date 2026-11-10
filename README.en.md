@@ -24,6 +24,7 @@ A Chrome extension that stops endless scrolling on YouTube and Instagram, and bl
 - Hides Reels; a single Reel opens as a regular post page, so you can't keep swiping
 - The Explore grid is cleared, leaving just the search
 - Suggested accounts on the right of the homepage (and your account above them) are hidden by default and the rest is centered; turn this off from the Doomn't toolbar icon
+- The floating Messages button in the bottom-right corner is hidden by default; turn the option off to show it on the homepage and in the Posts grid
 - Removes ads, suggested posts, and "More posts from …" under a post
 
 ## 4chan
