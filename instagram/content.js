@@ -235,14 +235,14 @@
     if (busy) return;
     busy = true;
     try {
-      for (let i = 0; i < 250 && liveCount < n && !stopLoading; i++) {
+      for (let i = 0; i < 250 && liveCount < n && !stopLoading && gridActive(); i++) {
         collect();
         if (liveCount >= n || feedEnded()) break;
         window.scrollBy(0, Math.round(window.innerHeight * 0.8));
         await sleep(120);
         // 等畫面附近的貼文出現圖片再往下捲（最多 1 秒）：捲太快的話貼文還沒載入圖片就被 Instagram 移除，
         // 格子會是空的，之後還得再捲回去補
-        for (let k = 0; k < 10 && !stopLoading && nearbyMissingImage(); k++) await sleep(100);
+        for (let k = 0; k < 10 && !stopLoading && gridActive() && nearbyMissingImage(); k++) await sleep(100);
         renderGrid();
       }
       collect();
@@ -263,6 +263,10 @@
     return false;
   }
 
+  // 背景捲動只能在格狀版面開著時進行：離開「貼文」模式（例如從貼文對話框點進個人頁）後還在捲的話，
+  // 捲的就是新的那一頁，使用者會一直被往下拉
+  const gridActive = () => document.documentElement.classList.contains("igc-grid");
+
   function findArticle(id) {
     return [...document.querySelectorAll("main article")].find((a) => postId(a) === id) || null;
   }
@@ -270,6 +274,7 @@
   // 背景動態捲到某一篇（Instagram 只留畫面附近的貼文），回傳那一篇的 <article>，找不到回傳 null
   async function scrollToPost(p) {
     let art = findArticle(p.id);
+    if (!gridActive()) return art;
     if (!art && p.y !== undefined) {
       window.scrollTo(0, Math.max(0, p.y - 100));
       await sleep(150);
@@ -277,7 +282,7 @@
     }
     // 還是不在：看頁面上的貼文排在它前面還是後面，往那個方向找
     const idx = posts.indexOf(p);
-    for (let i = 0; !art && i < 60 && !stopLoading; i++) {
+    for (let i = 0; !art && i < 60 && !stopLoading && gridActive(); i++) {
       const shown = [...document.querySelectorAll("main article")]
         .map((a) => posts.indexOf(postById.get(postId(a))))
         .filter((x) => x >= 0);
@@ -290,9 +295,18 @@
   }
 
   // 打開貼文：背景動態捲到那一篇，按它的「回應」按鈕
+  let opening = false; // 正在打開貼文（等背景載入停下來）：這段時間不要再開始新的背景載入
   async function openPost(id) {
     const p = postById.get(id);
-    if (!p || stopLoading) return;
+    if (!p || opening) return;
+    opening = true;
+    try {
+      await openPostNow(p, id);
+    } finally {
+      opening = false;
+    }
+  }
+  async function openPostNow(p, id) {
     // 背景還在載入（或補圖片）：先停下來（最多等一下子），再去找這一篇
     stopLoading = true;
     for (let i = 0; busy && i < 20; i++) await sleep(50);
@@ -325,7 +339,8 @@
     busy = true;
     try {
       for (const p of items) {
-        if (p.img || stopLoading || (p.imgTries || 0) >= 3) continue;
+        if (!gridActive() || stopLoading) break;
+        if (p.img || (p.imgTries || 0) >= 3) continue;
         p.imgTries = (p.imgTries || 0) + 1;
         const art = await scrollToPost(p);
         for (let i = 0; art && i < 15 && art.isConnected && !coverImage(art) && !stopLoading; i++) await sleep(100);
@@ -568,6 +583,7 @@
   }
 
   function showGrid() {
+    if (!busy && !opening) stopLoading = false; // 離開格狀版面時設的停止旗標：回來後清掉
     if (feedHref !== location.href) {
       feedHref = location.href;
       feedPage = 0;
@@ -582,7 +598,7 @@
     pauseHiddenVideos();
     collect();
     renderGrid();
-    if (busy || peekArt) return;
+    if (busy || peekArt || opening) return;
     // 本頁有還沒有圖片的格子：先補圖片
     const items = posts.slice(feedPage * PAGE_SIZE, (feedPage + 1) * PAGE_SIZE);
     if (items.some((p) => !p.img && (p.imgTries || 0) < 3)) {
@@ -597,7 +613,12 @@
 
   function hideGrid() {
     const grid = document.getElementById("igc-grid");
-    if (grid) grid.remove();
+    if (grid) {
+      grid.remove();
+      // 停下背景捲動；背景動態被捲到很下面，新的一頁（個人頁等）從最上面開始，不要停在那個位置
+      stopLoading = true;
+      window.scrollTo(0, 0);
+    }
     document.documentElement.classList.remove("igc-grid");
     gridSig = "";
   }
