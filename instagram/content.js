@@ -554,6 +554,167 @@
     }
   }
 
+  // ---------- 限時動態：換行排列的頭像，不用左右捲 ----------
+  // Instagram 的限時動態列只渲染畫面附近的十幾個（其餘用 scrollLeft 虛擬捲動），要按箭頭往右捲才看得到更多。
+  // 改成：原本那一列藏起來（高度 0，但還在頁面上），在背景把它從頭捲到尾，記下每一個人；
+  // 在它下方畫自己的版面：頭像換行排列，全部一次看到。沒看過的在前面，看過的變淡排在後面。
+  // - 看過／沒看過：讀頭像外圈的 <canvas>（彩色 = 沒看過，灰色 = 看過），和介面語言無關
+  // - 點頭像：把原本那一列捲到那個人，按它的按鈕，打開 Instagram 自己的限時動態播放器
+  // - 從播放器回來（網址從 /stories/… 變回 /）時重新掃一次，更新看過的狀態
+  let stories = new Map(); // 帳號 → { name, img, seen, x }
+  let storyTray = null; // 目前掃描的那一列
+  let storyScanning = false;
+  let storyStop = false;
+  let storySig = "";
+  let storyPrevPath = null;
+
+  function findTray() {
+    const posts = document.querySelector(".igc-home-posts");
+    for (let sib = posts && posts.previousElementSibling; sib; sib = sib.previousElementSibling) {
+      if (!sib.id && sib.querySelector("li canvas")) return sib;
+    }
+    return null;
+  }
+  function trayScroller(tray) {
+    const li = tray.querySelector("li");
+    for (let e = li && li.parentElement; e && e !== tray.parentElement; e = e.parentElement) {
+      if (e.scrollWidth > e.clientWidth + 10 && /auto|scroll|hidden/.test(getComputedStyle(e).overflowX)) return e;
+    }
+    return null;
+  }
+  // 外圈有顏色 → 沒看過；灰色 → 看過；還沒畫出來 → null
+  function ringSeen(canvas) {
+    try {
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      let drawn = false;
+      let sat = 0;
+      for (const [x, y] of [[w / 2, 2], [2, w / 2], [w / 2, w - 3], [w - 3, w / 2]]) {
+        const d = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+        if (d[3] > 0) drawn = true;
+        sat = Math.max(sat, Math.max(d[0], d[1], d[2]) - Math.min(d[0], d[1], d[2]));
+      }
+      return drawn ? sat < 60 : null;
+    } catch {
+      return null;
+    }
+  }
+  function readTray(tray, sc) {
+    const base = sc.getBoundingClientRect().left - sc.scrollLeft;
+    for (const li of tray.querySelectorAll("li")) {
+      const btn = li.querySelector('[role="button"]');
+      const name = li.textContent.trim();
+      if (!btn || !name) continue;
+      const img = li.querySelector("img");
+      const canvas = li.querySelector("canvas");
+      const old = stories.get(name);
+      const seen = canvas ? ringSeen(canvas) : null;
+      stories.set(name, {
+        name,
+        img: (img && img.src) || (old && old.img) || "",
+        seen: seen === null ? (old ? old.seen : false) : seen,
+        x: Math.round(li.getBoundingClientRect().left - base),
+      });
+    }
+  }
+  async function scanTray(tray) {
+    if (storyScanning) return;
+    const sc = trayScroller(tray);
+    storyScanning = true;
+    storyStop = false;
+    try {
+      if (sc) {
+        sc.scrollLeft = 0;
+        await sleep(100);
+        let lastWidth = 0;
+        let still = 0;
+        for (let i = 0; i < 120 && !storyStop && tray === storyTray && tray.isConnected; i++) {
+          readTray(tray, sc);
+          renderStories();
+          if (sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 2) {
+            // 到底了：等一下看 Instagram 會不會再載入更多
+            still = sc.scrollWidth === lastWidth ? still + 1 : 0;
+            lastWidth = sc.scrollWidth;
+            if (still > 3) break;
+            await sleep(300);
+            continue;
+          }
+          sc.scrollLeft += sc.clientWidth;
+          await sleep(150);
+        }
+        if (!storyStop) sc.scrollLeft = 0;
+      } else readTray(tray, tray);
+    } finally {
+      storyScanning = false;
+      // 掃描途中 Instagram 換了一個新的限時動態列：重新掃新的那一列
+      if (storyTray && storyTray !== tray && storyTray.isConnected) scanTray(storyTray);
+      else renderStories();
+    }
+  }
+  function renderStories() {
+    const tray = storyTray;
+    if (!tray || !tray.isConnected) return;
+    let box = document.getElementById("igc-stories");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "igc-stories";
+      box.addEventListener("click", (e) => {
+        const b = e.target.closest(".igc-story");
+        if (b) openStory(b.dataset.name);
+      });
+    }
+    if (box.previousElementSibling !== tray) tray.after(box);
+    const list = [...stories.values()].sort((a, b) => a.seen - b.seen || a.x - b.x);
+    const sig = JSON.stringify([doomntI18n.lang, storyScanning, list]);
+    if (sig === storySig) return;
+    storySig = sig;
+    const esc = (s) => String(s || "").replace(/[&<>"]/g, (c) => "&#" + c.charCodeAt(0) + ";");
+    let html = "";
+    for (const s of list) {
+      html +=
+        '<button type="button" class="igc-story' + (s.seen ? " igc-story-seen" : "") + '" data-name="' + esc(s.name) + '">' +
+        '<span class="igc-story-ring">' + (s.img ? '<img src="' + esc(s.img) + '" alt="" draggable="false">' : "") + "</span>" +
+        '<span class="igc-story-name">' + esc(s.name) + "</span></button>";
+    }
+    if (storyScanning) html += '<span class="igc-stories-loading">' + t("loading") + "</span>";
+    box.innerHTML = html;
+  }
+  async function openStory(name) {
+    const tray = storyTray;
+    const s = stories.get(name);
+    if (!tray || !s) return;
+    storyStop = true;
+    for (let i = 0; storyScanning && i < 20; i++) await sleep(50);
+    const sc = trayScroller(tray);
+    const find = () =>
+      [...tray.querySelectorAll("li")].find((li) => li.textContent.trim() === name);
+    let li = find();
+    if (!li && sc) {
+      sc.scrollLeft = Math.max(0, s.x - sc.clientWidth / 2);
+      for (let i = 0; !li && i < 20; i++) {
+        await sleep(50);
+        li = find();
+      }
+    }
+    const btn = li && li.querySelector('[role="button"]');
+    if (btn) btn.click();
+  }
+  function updateStories(p, storiesOnly) {
+    const back = storyPrevPath !== null && storyPrevPath !== "/" && p === "/";
+    storyPrevPath = p;
+    if (!storiesOnly) return;
+    const tray = findTray();
+    if (!tray) return;
+    tray.setAttribute("data-igc-tray", "");
+    if (tray !== storyTray) {
+      storyTray = tray;
+      stories = new Map();
+      storySig = "";
+      scanTray(tray);
+    } else if (back && !storyScanning) scanTray(tray); // 從限時動態播放器（或別頁）回來：更新看過的狀態
+    renderStories();
+  }
+
   // ---------- 限時動態下方的空白處：放一張圖 ----------
   // 插在被隱藏的貼文區塊後面；只在「限時動態」模式由 CSS 顯示。
   // 每次載入頁面隨機選一張
@@ -878,6 +1039,7 @@
       showGrid();
     }
     updateToggle(p, storiesOnly);
+    updateStories(p, storiesOnly);
   }
 
   // 任何一次檢查出錯都只記錄下來，不能讓整個擋除功能停擺

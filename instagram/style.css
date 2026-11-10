@@ -285,3 +285,76 @@ html.igc-hide-dm [data-igc-dm] {
 html.igc-grid:not(.igc-hide-dm):not(:has([role="dialog"])) [data-igc-dm] {
   z-index: 5 !important;
 }
+
+/* 限時動態：原本的一列藏起來（還留在頁面上，content.js 在背景捲它、按它的按鈕），改顯示換行排列的頭像 */
+html.igc-stories-only [data-igc-tray] {
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+}
+#igc-stories {
+  display: none;
+}
+html.igc-stories-only #igc-stories {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 74px);
+  justify-content: center;
+  gap: 14px 10px;
+  padding: 8px 0 20px;
+}
+.igc-story {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 74px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: rgb(var(--ig-primary-text, 0, 0, 0));
+  font: 12px/1.3 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
+  cursor: pointer;
+}
+.igc-story-ring {
+  display: block;
+  width: 66px;
+  height: 66px;
+  padding: 2px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5);
+}
+.igc-story-ring img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: 2px solid rgb(var(--ig-primary-background, 255, 255, 255));
+  border-radius: 50%;
+  object-fit: cover;
+}
+.igc-story-name {
+  max-width: 74px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 看過的：灰色外圈、變淡，排在後面；滑鼠移上去恢復 */
+.igc-story-seen {
+  opacity: 0.45;
+}
+.igc-story-seen:hover {
+  opacity: 1;
+}
+.igc-story-seen .igc-story-ring {
+  background: rgba(128, 128, 128, 0.45);
+}
+.igc-stories-loading {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: rgb(var(--ig-secondary-text, 115, 115, 115));
+  font-size: 13px;
+}
