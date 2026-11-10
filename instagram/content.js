@@ -804,35 +804,99 @@
       });
     }
   }
+  // 整頁載入時，Instagram 把限時動態列的完整資料（每個人一筆）直接寫在 HTML 裡的
+  // <script type="application/json">（xdt_api__v1__feed__reels_tray.tray）。
+  // 只拿來知道「總共應該有幾個人」，掃描少於這個數字就再掃一次。站內換頁回首頁時沒有這份資料 → null
+  let ssrTrayCount;
+  function expectedFromSsr() {
+    if (ssrTrayCount !== undefined) return ssrTrayCount;
+    ssrTrayCount = null;
+    try {
+      for (const s of document.querySelectorAll('script[type="application/json"]')) {
+        const text = s.textContent;
+        if (!text.includes('"xdt_api__v1__feed__reels_tray"')) continue;
+        const find = (o, depth) => {
+          if (!o || typeof o !== "object" || depth > 40) return null;
+          if (o.xdt_api__v1__feed__reels_tray && Array.isArray(o.xdt_api__v1__feed__reels_tray.tray))
+            return o.xdt_api__v1__feed__reels_tray.tray.length;
+          for (const k in o) {
+            const r = find(o[k], depth + 1);
+            if (r !== null) return r;
+          }
+          return null;
+        };
+        ssrTrayCount = find(JSON.parse(text), 0);
+        if (ssrTrayCount !== null) break;
+      }
+    } catch {}
+    return ssrTrayCount;
+  }
+  // 依捲動區的總寬度估計有幾個人（每個頭像的間距固定）
+  function expectedFromWidth(tray, sc) {
+    const lis = [...tray.querySelectorAll("li")]
+      .map((li) => li.getBoundingClientRect().left)
+      .sort((a, b) => a - b);
+    let pitch = 0;
+    for (let i = 1; i < lis.length; i++) {
+      const d = lis[i] - lis[i - 1];
+      if (d > 20 && (!pitch || d < pitch)) pitch = d;
+    }
+    return pitch ? Math.floor((sc.scrollWidth + 2) / pitch) : 0;
+  }
+  // 把整列從頭捲到尾讀一次。回傳捲動區（找不到 → null）
+  async function scanOnce(tray) {
+    // 頁面剛載入時捲動區可能還沒排版好（沒有橫向溢出）。先等它一下，
+    // 不然只會讀到畫面上那十幾個（之前就是這樣只出現前 13 個人）
+    let sc = trayScroller(tray);
+    const want = expectedFromSsr();
+    const shown = tray.querySelectorAll("li").length;
+    const waitMax = want && want > shown ? 3000 : 600;
+    for (let t = 0; !sc && t < waitMax && !storyStop && tray === storyTray && tray.isConnected; t += 100) {
+      await sleep(100);
+      sc = trayScroller(tray);
+    }
+    if (!sc) {
+      readTray(tray, tray);
+      return null;
+    }
+    sc.scrollLeft = 0;
+    await sleep(100);
+    let lastWidth = 0;
+    let still = 0;
+    for (let i = 0; i < 200 && !storyStop && tray === storyTray && tray.isConnected; i++) {
+      readTray(tray, sc);
+      if (sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 2) {
+        // 到底了：人數已經和 HTML 裡的資料一樣就結束；否則等一下看 Instagram 會不會再載入更多
+        if (want && stories.size >= want) break;
+        still = sc.scrollWidth === lastWidth ? still + 1 : 0;
+        lastWidth = sc.scrollWidth;
+        if (still > 3) break;
+        await sleep(300);
+        continue;
+      }
+      sc.scrollLeft += sc.clientWidth;
+      await sleep(150);
+    }
+    return sc;
+  }
   async function scanTray(tray) {
     if (storyScanning) return;
-    const sc = trayScroller(tray);
     storyScanning = true;
     storyStop = false;
     try {
-      if (sc) {
-        sc.scrollLeft = 0;
-        await sleep(100);
-        let lastWidth = 0;
-        let still = 0;
-        for (let i = 0; i < 120 && !storyStop && tray === storyTray && tray.isConnected; i++) {
-          readTray(tray, sc);
-          if (sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 2) {
-            // 到底了：等一下看 Instagram 會不會再載入更多
-            still = sc.scrollWidth === lastWidth ? still + 1 : 0;
-            lastWidth = sc.scrollWidth;
-            if (still > 3) break;
-            await sleep(300);
-            continue;
-          }
-          sc.scrollLeft += sc.clientWidth;
-          await sleep(150);
-        }
-        if (!storyStop) sc.scrollLeft = 0;
-      } else readTray(tray, tray);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const sc = await scanOnce(tray);
+        if (storyStop || tray !== storyTray || !tray.isConnected) break;
+        // 讀到的人數比應有的少（還沒載入完、捲太快漏掉）→ 再掃一次
+        const want = Math.max(expectedFromSsr() || 0, sc ? expectedFromWidth(tray, sc) : 0);
+        if (stories.size >= want - 1) break;
+        await sleep(500);
+      }
+      const sc = trayScroller(tray);
+      if (sc && !storyStop) sc.scrollLeft = 0;
     } finally {
       storyScanning = false;
-      if (tray === storyTray && !storyStop) storyReady = true;
+      if (tray === storyTray && tray.isConnected && !storyStop) storyReady = true;
       // 掃描途中 Instagram 換了一個新的限時動態列：重新掃新的那一列
       if (storyTray && storyTray !== tray && storyTray.isConnected) scanTray(storyTray);
       else renderStories();
@@ -888,7 +952,9 @@
     document.documentElement.classList.add("igc-stories-ready");
     document.getElementById("igc-loader")?.remove();
   }
-  setTimeout(markStoriesReady, STORIES_WAIT_MAX);
+  // 計時從「第一次進到首頁限時動態模式」開始算（不是從腳本載入：先在別頁待了一陣子再回首頁，
+  // 會一回來就時間到，還沒畫好的空白頁面直接露出來）
+  let storyWaitTimer = 0;
   // 點頭像：不按原本那一列的按鈕（那樣打開的播放器兩側會有其他帳號，看完會接著播下一個人），
   // 而是直接把網址換成 /stories/帳號/，讓 Instagram 自己的路由打開播放器：
   // 這樣只會播這個人的限時動態，兩側沒有其他帳號，看完自動關閉、回到首頁（和從個人頁點大頭貼一樣）。
@@ -903,6 +969,7 @@
     const back = storyPrevPath !== null && storyPrevPath !== "/" && p === "/";
     storyPrevPath = p;
     if (!storiesOnly) return;
+    if (!storyWaitTimer) storyWaitTimer = setTimeout(markStoriesReady, STORIES_WAIT_MAX);
     const tray = findTray();
     if (!tray) return;
     tray.setAttribute("data-igc-tray", "");

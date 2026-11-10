@@ -337,6 +337,11 @@ html.igc-stories-only [data-igc-tray] {
 #igc-stories {
   display: none;
 }
+/* 首頁的 <main> 是直向 flex、內容垂直置中（justify-content: center）：限時動態少的時候整塊會被推到畫面中間。
+   改成從上面開始排 */
+html.igc-stories-only main:has(#igc-stories) {
+  justify-content: flex-start !important;
+}
 html.igc-stories-only #igc-stories {
   display: grid;
   grid-template-columns: repeat(auto-fill, 74px);
