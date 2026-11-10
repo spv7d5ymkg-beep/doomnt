@@ -525,6 +525,11 @@ ytd-video-renderer #channel-info #channel-thumbnail {
   margin: 0 6px 0 0 !important;
   padding: 0 !important;
 }
+/* YouTube 預設把清單裡的頭像藏起來（.ytLockupMetadataViewModelAvatar { display: none }），
+   只有訂閱內容等地方另外打開；「個人中心」的觀看記錄、稍後觀看等區塊沒有打開，頭像不顯示也不會載入圖片 */
+.ytc-avatar {
+  display: inline-flex !important;
+}
 .ytc-avatar *,
 ytd-video-renderer #channel-info #channel-thumbnail * {
   width: 18px !important;
