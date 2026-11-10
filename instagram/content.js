@@ -721,15 +721,18 @@
     let n;
     while ((n = w.nextNode())) {
       if (!MORE_POSTS_RE.test(n.textContent.trim())) continue;
-      // 往上找到第一個含有貼文連結的區塊（標題 + 影片牆），整塊隱藏
-      let el = n.parentElement;
-      for (let i = 0; i < 6 && el && el !== document.body; i++) {
-        if (el.querySelector('a[href*="/p/"], a[href*="/reel/"]')) {
-          if (!el.querySelector("video")) hide(el); // 保險：不要連正在看的影片一起藏
-          break;
-        }
-        el = el.parentElement;
+      // 往上找「標題 + 影片牆」那一整塊：盡量往上，但不能包到正在看的這篇貼文
+      // （影片牆的縮圖不一定是連結，只看「有沒有貼文連結」會一路爬到包著整頁的外層，把貼文本身也藏掉）。
+      // 停止條件：碰到 <main> 或它的直接子元素、碰到含有這篇貼文連結或影片的區塊
+      const cur = (location.pathname.match(/^\/(?:[^/]+\/)?(?:p|reel)\/([^/?#]+)/) || [])[1];
+      let block = null;
+      for (let el = n.parentElement; el && el !== document.body; el = el.parentElement) {
+        if (el.tagName === "MAIN" || (el.parentElement && el.parentElement.tagName === "MAIN")) break;
+        if (el.querySelector("video, article")) break;
+        if (cur && el.querySelector('a[href*="/' + cur + '/"]')) break;
+        block = el;
       }
+      if (block && block.querySelector('a[href*="/p/"], a[href*="/reel/"], img')) hide(block);
     }
   }
 

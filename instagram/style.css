@@ -264,16 +264,17 @@ html.igc-post-overlay .igc-unstack-post {
   z-index: auto !important;
 }
 /* 貼文卡片以外的東西（分隔線、「更多貼文」）不顯示 */
+/* 外層比卡片寬也比卡片高（Instagram 貼文頁的固定版面），卡片會偏左上。
+   讓外層不產生自己的方框，卡片直接成為置中排列的那一項，上下左右都在正中間 */
 html.igc-post-overlay main > div {
-  margin: auto !important;
-  padding: 0 !important;
+  display: contents !important;
 }
 html.igc-post-overlay main > div > :not(:first-child),
 html.igc-post-overlay main ~ footer {
   display: none !important;
 }
 html.igc-post-overlay main > div > :first-child {
-  margin: 0 !important;
+  margin: auto !important;
   padding: 0 !important;
   border-radius: 4px;
   overflow: hidden;
