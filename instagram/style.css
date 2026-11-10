@@ -79,6 +79,12 @@ html.__fb-dark-mode #igc-pager button:hover:not(:disabled) {
   display: none !important;
 }
 
+/* 離開首頁、新頁面還沒換上來時，舊的首頁不露出來（content.js 的 markStale） */
+[data-igc-stale],
+[data-igc-stale] ~ footer {
+  visibility: hidden !important;
+}
+
 /* 左側選單：原本的「首頁」藏起來，換成「限時動態」「貼文」兩項（content.js 的 updateNav） */
 [data-igc-home] {
   display: none !important;

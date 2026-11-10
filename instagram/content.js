@@ -655,9 +655,28 @@
     }
   }
 
+  // ---------- 離開首頁時，舊的首頁不要露出來 ----------
+  // 從首頁（限時動態或貼文）切到 Instagram 自己的頁面（訊息、個人頁、探索…）時，網址先變，
+  // 舊的首頁會在畫面上多留約 1 秒才被換掉。這段期間首頁的 class 已經拿掉，
+  // 原本那一列限時動態、「追蹤中」的動態等就會露出來。
+  // 所以離開時把當下的 <main>（和後面的頁尾連結）標上 data-igc-stale 藏起來；
+  // Instagram 會把它整個移除換成新頁面的 <main>，新的不受影響。保險起見最多藏 STALE_MAX。
+  const STALE_MAX = 2500;
+  let staleAt = 0;
+  function markStale() {
+    for (const m of document.querySelectorAll("main")) m.setAttribute("data-igc-stale", "");
+    staleAt = Date.now();
+  }
+  function releaseStale(force) {
+    if (!staleAt || (!force && Date.now() - staleAt < STALE_MAX)) return;
+    for (const m of document.querySelectorAll("[data-igc-stale]")) m.removeAttribute("data-igc-stale");
+    staleAt = 0;
+  }
+
   function hideGrid() {
     const grid = document.getElementById("igc-grid");
     if (grid) {
+      markStale();
       grid.remove();
       // 停下背景捲動；背景動態被捲到很下面，新的一頁（個人頁等）從最上面開始，不要停在那個位置
       stopLoading = true;
@@ -1210,7 +1229,10 @@
     const keepStories = storyViewer && viewerFromHome;
     if (root.classList.contains("igc-stories-only") && !storiesOnly && !keepStories && p !== "/") {
       linger(HOME_POSTS_SEL);
+      markStale();
     }
+    // 回到首頁：首頁的內容不用藏；其他頁面：時間到了就放開
+    releaseStale(p === "/");
     root.classList.toggle("igc-explore", explore);
     root.classList.toggle("igc-stories-only", storiesOnly || keepStories);
     // 記錄目前被藏頁面上的連結；換到不同頁面就重新開始記
