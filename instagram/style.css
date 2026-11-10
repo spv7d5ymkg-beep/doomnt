@@ -247,7 +247,7 @@ html.igc-grid .igc-unstack {
 }
 
 /* 打不開 Instagram 對話框的貼文：貼文頁變成蓋在格狀版面上的浮動視窗（content.js 的 openOverlay） */
-html.igc-post-overlay main {
+html.igc-post-overlay main:not([data-igc-feed]) {
   position: fixed !important;
   inset: 0 !important;
   z-index: 20 !important;
@@ -258,27 +258,35 @@ html.igc-post-overlay main {
   padding: 24px !important;
   overflow: auto !important;
   visibility: visible !important;
-  background: rgba(0, 0, 0, 0.65) !important;
+  background: transparent !important; /* 遮罩是後面的 #igc-post-shade */
 }
 html.igc-post-overlay .igc-unstack-post {
   z-index: auto !important;
 }
-/* 貼文卡片以外的東西（分隔線、「更多貼文」）不顯示 */
-/* 外層比卡片寬也比卡片高（Instagram 貼文頁的固定版面），卡片會偏左上。
-   讓外層不產生自己的方框，卡片直接成為置中排列的那一項，上下左右都在正中間 */
-html.igc-post-overlay main > div {
-  display: contents !important;
-}
-html.igc-post-overlay main > div > :not(:first-child),
-html.igc-post-overlay main ~ footer {
-  display: none !important;
-}
-html.igc-post-overlay main > div > :first-child {
+/* 卡片和外層的大小交給 Instagram（每篇貼文依圖片比例設定卡片的最大寬度，改了會被拉寬、裁切）；
+   外層拿掉上方的留白和下方的間距，卡片在外層裡上下左右置中 */
+html.igc-post-overlay main:not([data-igc-feed]) > div {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
   margin: auto !important;
   padding: 0 !important;
+}
+html.igc-post-overlay main:not([data-igc-feed]) > div > :not(:first-child),
+html.igc-post-overlay main:not([data-igc-feed]) ~ footer {
+  display: none !important;
+}
+html.igc-post-overlay main:not([data-igc-feed]) > div > :first-child {
   border-radius: 4px;
   overflow: hidden;
   background: rgb(var(--ig-primary-background, 255, 255, 255));
+}
+/* 點下去馬上出現的遮罩（貼文頁載入前也看得到），貼文頁的 <main> 疊在它上面 */
+#igc-post-shade {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  background: rgba(0, 0, 0, 0.65);
 }
 #igc-post-close {
   position: fixed;

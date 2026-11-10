@@ -22,7 +22,7 @@ A Chrome extension that stops endless scrolling on YouTube and Instagram, and bl
 - While the home page loads, an animated Doomn't logo is shown; the stories appear all at once when everything has loaded
 - Stories are no longer a sideways-scrolling row: everyone's avatar wraps into rows so you see them all at once, unseen first and seen ones faded at the end
 - Clicking an avatar plays only that person's stories, with no other accounts on the sides, and returns to the homepage when they finish
-- Posts mode is a three-column grid like the Explore page, 12 posts per page with "← Previous / Next →" buttons instead of endless scrolling; hovering a tile shows the account, likes and comments, and clicking opens the full post in Instagram's own dialog
+- Posts mode is a three-column grid like the Explore page, 12 posts per page with "← Previous / Next →" buttons instead of endless scrolling; hovering a tile shows the account, likes and comments, and clicking opens the full post in a popup over the grid (it never leaves the page)
 - The grid remembers the posts it last loaded, so switching back to Posts shows them instantly while newer posts load in the background and appear at the top
 - Posts from before today are dimmed (back to normal on hover), so you can tell at a glance which ones are new
 - Hides Reels; a single Reel opens as a regular post page, so you can't keep swiping

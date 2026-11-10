@@ -77,7 +77,6 @@
   let busy = false; // 背景捲動中（載入或打開貼文）
   let stopLoading = false; // 要打開貼文：中斷背景載入
   let gridSig = ""; // 上次畫的內容，沒變就不重畫
-  let openedAt = 0; // 最近一次從格狀版面打開貼文的時間
   let dialogSeenAt = 0; // 最近一次看到貼文對話框的時間
   let overlayPost = null; // 用貼文頁做成的浮動視窗目前顯示的貼文（見 openOverlay）
 
@@ -293,41 +292,14 @@
     return art;
   }
 
-  // 打開貼文：背景動態捲到那一篇，按它的「回應」按鈕
-  let opening = false; // 正在打開貼文（等背景載入停下來）：這段時間不要再開始新的背景載入
-  async function openPost(id) {
-    const p = postById.get(id);
-    if (!p || opening) return;
-    opening = true;
-    try {
-      await openPostNow(p, id);
-    } finally {
-      opening = false;
-    }
-  }
-  async function openPostNow(p, id) {
-    // 背景還在載入（或補圖片）：先停下來（最多等一下子），再去找這一篇
-    stopLoading = true;
-    for (let i = 0; busy && i < 20; i++) await sleep(50);
-    stopLoading = false;
-    if (busy) return;
-    busy = true;
-    try {
-      const art = await scrollToPost(p);
-      collect();
-      const icon =
-        art &&
-        [...art.querySelectorAll("section svg[aria-label]")].find((s) =>
-          COMMENT_LABEL_RE.test(s.getAttribute("aria-label"))
-        );
-      const btn = icon && (icon.closest('[role="button"], button, a') || icon.parentElement);
-      if (btn) {
-        openedAt = Date.now();
-        btn.click();
-      } else openOverlay(id); // 關閉留言（沒有「回應」按鈕）或在動態裡找不到：打不開 Instagram 的對話框
-    } finally {
-      busy = false;
-    }
+  // 打開貼文：一律用貼文頁做成的浮動視窗（見 openOverlay）。
+  // 不再到背景動態裡找那一篇、按它的「回應」按鈕開 Instagram 的對話框：
+  // 那樣要先停下背景載入、把動態捲到那一篇（會延遲），關閉留言或找不到的貼文還得換另一種開法，
+  // 兩種開法外觀不同、切換時也容易出錯。
+  function openPost(id) {
+    if (!postById.has(id) || overlayPost) return;
+    stopLoading = true; // 背景載入先停（開著的時候背景動態會被換成貼文頁）
+    openOverlay(id);
   }
 
   // 補圖片：背景載入捲得快，有些貼文還沒載入圖片就被 Instagram 移除了，格子會是空的。
@@ -357,6 +329,9 @@
   // 按視窗外面、× 或 Esc 回上一頁，回到格狀版面。
   function openOverlay(id) {
     overlayPost = id;
+    // 背景動態的 <main> 標起來：浮動視窗的樣式只套用到貼文頁的 <main>。
+    // 網址變了之後 Instagram 要約半秒才換上貼文頁，這段期間只顯示遮罩，不會把背景動態當成視窗顯示出來
+    for (const m of document.querySelectorAll("main")) m.setAttribute("data-igc-feed", "");
     history.pushState(null, "", "/p/" + encodeURIComponent(id) + "/");
     window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
     // 從視窗裡點進個人頁再按上一頁時，跳過這一筆，直接回到格狀版面（見 skipDialogEntry）
@@ -374,15 +349,23 @@
     document.documentElement.classList.toggle("igc-post-overlay", on);
     // 貼文頁外面有 Instagram 設了 z-index: 0 的區塊，把它困在格狀版面底下；開著時讓那幾層不建立堆疊
     if (on) {
-      const main = document.querySelector("main");
+      const main = document.querySelector("main:not([data-igc-feed])");
       for (let up = main && main.parentElement; up && up !== document.body; up = up.parentElement) {
         if (!up.classList.contains("igc-unstack-post") && getComputedStyle(up).zIndex !== "auto") up.classList.add("igc-unstack-post");
       }
     }
     let btn = document.getElementById("igc-post-close");
+    let shade = document.getElementById("igc-post-shade");
     if (!on) {
       btn?.remove();
+      shade?.remove();
       return;
+    }
+    if (!shade && document.body) {
+      shade = document.createElement("div");
+      shade.id = "igc-post-shade";
+      shade.addEventListener("click", closeOverlay);
+      document.body.appendChild(shade);
     }
     if (!btn && document.body) {
       btn = document.createElement("button");
@@ -655,7 +638,7 @@
   }
 
   function showGrid() {
-    if (!busy && !opening) stopLoading = false; // 離開格狀版面時設的停止旗標：回來後清掉
+    if (!busy) stopLoading = false; // 離開格狀版面時設的停止旗標：回來後清掉
     if (feedHref !== location.href) {
       feedHref = location.href;
       feedPage = 0;
@@ -670,7 +653,7 @@
     pauseHiddenVideos();
     collect();
     renderGrid();
-    if (busy || opening) return;
+    if (busy) return;
     // 本頁有還沒有圖片的格子：先補圖片
     const items = posts.slice(feedPage * PAGE_SIZE, (feedPage + 1) * PAGE_SIZE);
     if (items.some((p) => !p.img && (p.imgTries || 0) < 3)) {
@@ -1237,7 +1220,7 @@
       !postsMode &&
       POST_PAGE_RE.test(p) &&
       document.getElementById("igc-grid") &&
-      (now - dialogSeenAt < 1000 || now - openedAt < 3000 || overlayOn());
+      (now - dialogSeenAt < 1000 || overlayOn());
     updateOverlay(!!overGrid && overlayOn());
     if (!postsMode && !overGrid) hideGrid();
     // 記下「從格狀版面打開的對話框」這一筆瀏覽紀錄（見 skipDialogEntry）
