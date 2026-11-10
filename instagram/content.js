@@ -352,7 +352,7 @@
   //   標上 .igc-unstack，貼文模式時拿掉（style.css），選單自己的 z-index 才比格狀版面高
   let sidebarMin = 0;
   window.addEventListener("resize", () => (sidebarMin = 0));
-  function placeGrid(grid) {
+  function measureSidebar() {
     const link = document.querySelector('a[href="/explore/"]');
     let right = 0;
     let el = link;
@@ -367,7 +367,49 @@
       }
     }
     if (right) sidebarMin = sidebarMin ? Math.min(sidebarMin, right) : right;
-    grid.style.left = (right ? sidebarMin : 0) + "px";
+    return right ? sidebarMin : 0;
+  }
+  function placeGrid(grid) {
+    grid.style.left = measureSidebar() + "px";
+  }
+
+  // ---------- 首頁右側的推薦帳號（連同上面你自己的帳號） ----------
+  // 彈出視窗的開關（igSuggestHidden，預設藏起來）。
+  // 右側欄和動態欄是同一個置中排列的 flex 列的兩個子元素；找到右側欄（裡面有「© 年份 INSTAGRAM FROM META」，
+  // 不管介面語言都一樣），標上 data-igc-suggest，藏起來後動態欄自然置中。
+  // 這一列從畫面最左邊開始（左側選單蓋在上面），左邊補上選單的寬度，才會在選單右邊的空間置中。
+  let hideSuggest = true;
+  const setSuggestClass = () =>
+    document.documentElement.classList.toggle("igc-hide-suggest", hideSuggest);
+  setSuggestClass();
+  chrome.storage.local.get({ igSuggestHidden: true }, (r) => {
+    hideSuggest = r.igSuggestHidden;
+    setSuggestClass();
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.igSuggestHidden) {
+      hideSuggest = changes.igSuggestHidden.newValue;
+      setSuggestClass();
+    }
+  });
+  function markSuggest() {
+    const main = document.querySelector("main");
+    if (!main) return;
+    let col = main.querySelector("[data-igc-suggest]");
+    if (!col) {
+      const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
+      let n;
+      while ((n = walker.nextNode())) if (/INSTAGRAM FROM META/i.test(n.nodeValue)) break;
+      if (!n) return;
+      col = n.parentElement;
+      while (col && col.parentElement && col.parentElement.parentElement !== main) col = col.parentElement;
+      if (!col || !col.parentElement || col.parentElement.parentElement !== main) return;
+      col.setAttribute("data-igc-suggest", "");
+      col.parentElement.setAttribute("data-igc-suggest-row", "");
+    }
+    const side = measureSidebar() + "px";
+    const row = col.parentElement;
+    if (row.style.getPropertyValue("--igc-side") !== side) row.style.setProperty("--igc-side", side);
   }
 
   // 今天以前的貼文：格子變淡（滑鼠移上去恢復），今天的貼文比較醒目。
@@ -760,6 +802,7 @@
       return;
     }
     if (POST_PAGE_RE.test(p)) hideMorePosts();
+    if (p === "/") markSuggest();
     fitDialogVideos();
     const variant = new URLSearchParams(location.search).get("variant");
     // 首頁預設 = 只有限時動態；?variant=following（或 past_posts）= 貼文模式

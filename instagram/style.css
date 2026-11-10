@@ -267,3 +267,12 @@ html.igc-peeking [data-igc-peek] {
   line-height: 1;
   cursor: pointer;
 }
+
+/* 首頁右側的推薦帳號（content.js 的 markSuggest，彈出視窗可以關掉） */
+html.igc-hide-suggest [data-igc-suggest] {
+  display: none !important;
+}
+html.igc-hide-suggest [data-igc-suggest-row] {
+  box-sizing: border-box !important;
+  padding-left: var(--igc-side, 0px) !important;
+}
