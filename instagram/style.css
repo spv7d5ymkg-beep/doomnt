@@ -31,24 +31,6 @@ html.igc-stories-only main article {
   display: none !important;
 }
 
-/* 限時動態下方的圖片（只在「限時動態」模式顯示） */
-#igc-meme {
-  display: none;
-}
-html.igc-stories-only #igc-meme {
-  display: flex;
-  justify-content: center;
-  padding: 32px 16px;
-}
-/* 正方形圖片（每次載入隨機一張）：和貼文同寬，但不高過一個螢幕 */
-#igc-meme img {
-  width: min(470px, 100%, calc(100vh - 240px));
-  aspect-ratio: 1;
-  height: auto;
-  border-radius: 8px;
-  user-select: none;
-}
-
 /* 顏色一律用 Instagram 自己的色彩變數（格式是 "r, g, b"），跟著 Instagram 的「外觀」設定
    切換深色／淺色，而不是跟著系統。括號裡的是淺色模式的值，變數不存在時才會用到。 */
 

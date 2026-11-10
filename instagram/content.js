@@ -134,6 +134,7 @@
 
   // 把背景動態裡目前在頁面上的貼文記下來（之前看過的就更新資料）
   function collect() {
+    let added = false;
     for (const a of document.querySelectorAll("main article")) {
       const id = postId(a);
       if (!id) continue;
@@ -143,6 +144,7 @@
         if (p) {
           posts = posts.filter((x) => x !== p);
           postById.delete(id);
+          if (p.live) liveCount--;
         }
         continue;
       }
@@ -150,17 +152,72 @@
         p = { id };
         postById.set(id, p);
         posts.push(p);
+        added = true;
       }
-      p.img = coverImage(a) || p.img;
+      if (!p.live) {
+        p.live = true; // 這次載入頁面時在動態裡看到了（不只是快取裡的）
+        liveCount++;
+      }
+      // 已經有圖片網址（快取裡的）就不換：同一張圖每次載入網址都不同，換了就得重新下載。
+      // 舊網址過期載入失敗時會被清掉（ensureGrid 的 error 監聽），這裡再補上新的
+      p.img = p.img || coverImage(a);
       p.user = postUser(a) || p.user;
       Object.assign(p, readCounts(a));
       p.video = p.video || !!a.querySelector("video");
       p.carousel =
         p.carousel || !!a.querySelector('button[aria-label="下一步"], button[aria-label="Next"]');
       const t = a.querySelector("time[datetime]");
-      if (t) p.time = Date.parse(t.getAttribute("datetime"));
+      if (t) {
+        const time = Date.parse(t.getAttribute("datetime"));
+        if (time !== p.time) added = true; // 時間變了（或剛讀到）：要重新排序
+        p.time = time;
+      }
       p.y = Math.round(a.getBoundingClientRect().top + window.scrollY);
     }
+    // 「追蹤中」動態是照時間排的：依發文時間由新到舊排，快取裡的舊資料和新載入的貼文才能接在一起
+    if (added) sortPosts();
+  }
+  const sortPosts = () => posts.sort((a, b) => (b.time || 0) - (a.time || 0));
+
+  // ---------- 格狀版面的快取 ----------
+  // 每次切到「貼文」都會整頁重新載入，Instagram 的動態一批只有幾篇、每批要 2 秒多，載滿一頁要 10 秒左右。
+  // 所以把看過的貼文資料（不含圖片本身，只有圖片網址）存在 chrome.storage.local：
+  // 下次打開時先用快取馬上畫出格狀版面，背景照常載入，新貼文依時間插進最前面、舊資料被新的覆蓋。
+  // 圖片網址幾天內有效，瀏覽器也已經快取過同一個網址的圖片，所以圖片也是馬上出現；
+  // 網址過期載入失敗的格子，改成重新到動態裡找圖片（見 ensureGrid 的 error 監聽）。
+  const CACHE_KEY = "igGridCache";
+  const CACHE_MAX_AGE = 3 * 24 * 3600 * 1000;
+  const CACHE_POSTS = 72;
+  let gridCache = null; // 讀進來的快取貼文（還沒放進 posts 的）
+  let liveCount = 0; // 這次載入頁面時，動態裡實際看到的貼文數
+  chrome.storage.local.get({ [CACHE_KEY]: null }, (r) => {
+    const c = r[CACHE_KEY];
+    if (!c || !Array.isArray(c.posts) || Date.now() - c.at > CACHE_MAX_AGE) return;
+    gridCache = c.posts;
+    if (feedHref) seedFromCache(); // 格狀版面已經開了：補進去
+  });
+  function seedFromCache() {
+    if (!gridCache) return;
+    for (const c of gridCache) {
+      if (!c || !c.id || postById.has(c.id)) continue;
+      const p = Object.assign({}, c);
+      postById.set(p.id, p);
+      posts.push(p);
+    }
+    sortPosts();
+    gridSig = "";
+    renderGrid();
+  }
+  let saveTimer = 0;
+  function saveCache() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      const keep = posts.filter((p) => p.img && p.time).slice(0, CACHE_POSTS);
+      const out = keep.map(({ id, user, img, likes, comments, video, carousel, time }) => ({
+        id, user, img, likes, comments, video, carousel, time,
+      }));
+      chrome.storage.local.set({ [CACHE_KEY]: { at: Date.now(), posts: out } });
+    }, 1000);
   }
 
   const feedEnded = () => !!findText(document.body, MARKER_RE); // 「沒有其他新動態了」
@@ -178,11 +235,14 @@
     if (busy) return;
     busy = true;
     try {
-      for (let i = 0; i < 250 && posts.length < n && !stopLoading; i++) {
+      for (let i = 0; i < 250 && liveCount < n && !stopLoading; i++) {
         collect();
-        if (posts.length >= n || feedEnded()) break;
+        if (liveCount >= n || feedEnded()) break;
         window.scrollBy(0, Math.round(window.innerHeight * 0.8));
         await sleep(120);
+        // 等畫面附近的貼文出現圖片再往下捲（最多 1 秒）：捲太快的話貼文還沒載入圖片就被 Instagram 移除，
+        // 格子會是空的，之後還得再捲回去補
+        for (let k = 0; k < 10 && !stopLoading && nearbyMissingImage(); k++) await sleep(100);
         renderGrid();
       }
       collect();
@@ -190,6 +250,17 @@
       busy = false;
       renderGrid();
     }
+  }
+
+  function nearbyMissingImage() {
+    const h = window.innerHeight;
+    for (const a of document.querySelectorAll("main article")) {
+      if (a.classList.contains("igc-hidden") || !postId(a)) continue;
+      const r = a.getBoundingClientRect();
+      if (r.bottom < -h || r.top > 2 * h) continue;
+      if (!coverImage(a)) return true;
+    }
+    return false;
   }
 
   function findArticle(id) {
@@ -325,6 +396,20 @@
       '<div id="igc-grid-inner"><div id="igc-grid-head"></div><div id="igc-grid-tiles"></div>' +
       '<nav id="igc-pager"><button type="button" data-go="-1"></button><span></span>' +
       '<button type="button" data-go="1"></button></nav></div>';
+    // 快取裡的圖片網址過期、載入失敗：清掉，讓 showGrid 到動態裡重新找這一篇的圖片
+    grid.addEventListener(
+      "error",
+      (e) => {
+        const tile = e.target.tagName === "IMG" && e.target.closest(".igc-tile");
+        const p = tile && postById.get(tile.dataset.id);
+        if (!p) return;
+        p.img = null;
+        p.imgTries = 0;
+        gridSig = "";
+        schedule();
+      },
+      true
+    );
     grid.addEventListener("click", (e) => {
       const tile = e.target.closest(".igc-tile");
       if (tile) {
@@ -465,6 +550,7 @@
     const sig = JSON.stringify([doomntI18n.lang, feedPage, ended, loadingPage, midnight, items]);
     if (sig === gridSig) return;
     gridSig = sig;
+    saveCache();
 
     let html = "";
     for (const p of items) html += tileHtml(p, midnight);
@@ -487,7 +573,9 @@
       feedPage = 0;
       posts = [];
       postById = new Map();
+      liveCount = 0;
       gridSig = "";
+      seedFromCache();
     }
     document.documentElement.classList.add("igc-grid");
     ensureGrid();
@@ -502,7 +590,7 @@
       return;
     }
     // 本頁和下一頁還沒載滿：在背景繼續捲動載入
-    if (!feedEnded() && posts.length < (feedPage + 1 + PREFETCH_PAGES) * PAGE_SIZE) {
+    if (!feedEnded() && liveCount < (feedPage + 1 + PREFETCH_PAGES) * PAGE_SIZE) {
       loadUntil((feedPage + 1 + PREFETCH_PAGES) * PAGE_SIZE);
     }
   }
@@ -546,7 +634,6 @@
       for (let sib = el.previousElementSibling; sib; sib = sib.previousElementSibling) {
         if (sib.querySelector("canvas")) {
           el.classList.add("igc-home-posts");
-          addMeme(el);
           return;
         }
       }
@@ -715,35 +802,12 @@
     renderStories();
   }
 
-  // ---------- 限時動態下方的空白處：放一張圖 ----------
-  // 插在被隱藏的貼文區塊後面；只在「限時動態」模式由 CSS 顯示。
-  // 每次載入頁面隨機選一張
-  const POSTERS = ["poster-1.png", "poster-2.png", "poster-3.png", "poster-4.png", "poster-5.png", "poster-6.png", "poster-7.png", "poster-8.png"];
-  const poster = POSTERS[Math.floor(Math.random() * POSTERS.length)];
-
-  // 英文介面用 images/en/ 裡的英文版；換語言時馬上換圖
-  const posterUrl = () => chrome.runtime.getURL((doomntI18n.lang === "en" ? "images/en/" : "images/") + poster);
+  // 換語言時馬上更新格狀版面和切換按鈕的文字
   doomntI18n.onChange(() => {
-    const img = document.querySelector("#igc-meme img");
-    if (img) img.src = posterUrl();
     renderGrid();
-    schedule(); // 切換按鈕的文字
+    renderStories();
+    schedule();
   });
-
-  function addMeme(postsBlock) {
-    let box = document.getElementById("igc-meme");
-    if (box && box.previousElementSibling === postsBlock) return;
-    if (!box) {
-      box = document.createElement("div");
-      box.id = "igc-meme";
-      const img = document.createElement("img");
-      img.src = posterUrl();
-      img.alt = "";
-      img.draggable = false;
-      box.appendChild(img);
-    }
-    postsBlock.after(box);
-  }
 
   // ---------- 切換按鈕：限時動態 / 貼文 ----------
   // 按鈕跟著首頁內容出現與消失，而不是只看網址：
