@@ -553,6 +553,51 @@
     );
   }
 
+  // 更新格子：同一篇貼文沿用原本的格子，只改有變的地方（圖片網址、讚數…），再照新的順序排好。
+  // 不整個重畫：整個換掉的話每張圖片都要重新解碼，畫面會閃一下
+  function renderTiles(box, items, midnight, msg) {
+    const old = new Map();
+    for (const a of box.querySelectorAll(".igc-tile")) old.set(a.dataset.id, a);
+    const tpl = document.createElement("template");
+    const want = [];
+    for (const p of items) {
+      tpl.innerHTML = tileHtml(p, midnight);
+      const fresh = tpl.content.firstElementChild;
+      const a = old.get(p.id);
+      if (!a) {
+        want.push(fresh);
+        continue;
+      }
+      a.className = fresh.className;
+      const img = a.querySelector("img");
+      const newImg = fresh.querySelector("img");
+      if (!newImg) img?.remove();
+      else if (!img) a.prepend(newImg);
+      else if (img.getAttribute("src") !== newImg.getAttribute("src")) img.setAttribute("src", newImg.getAttribute("src"));
+      for (const sel of [".igc-tile-badge", ".igc-tile-info"]) {
+        const cur = a.querySelector(sel);
+        const next = fresh.querySelector(sel);
+        if (!next) cur?.remove();
+        else if (!cur) a.appendChild(next);
+        else if (cur.innerHTML !== next.innerHTML) cur.innerHTML = next.innerHTML;
+      }
+      want.push(a);
+    }
+    if (msg) {
+      let m = box.querySelector(".igc-grid-loading");
+      if (!m) {
+        m = document.createElement("div");
+        m.className = "igc-grid-loading";
+      }
+      setText(m, msg);
+      want.push(m);
+    }
+    want.forEach((node, i) => {
+      if (box.children[i] !== node) box.insertBefore(node, box.children[i] || null);
+    });
+    while (box.children.length > want.length) box.lastElementChild.remove();
+  }
+
   function renderGrid() {
     const grid = document.getElementById("igc-grid");
     if (!grid) return;
@@ -562,16 +607,15 @@
     const ended = feedEnded();
     const loadingPage = items.length < PAGE_SIZE && !ended;
     const midnight = new Date().setHours(0, 0, 0, 0);
-    const sig = JSON.stringify([doomntI18n.lang, feedPage, ended, loadingPage, midnight, items]);
+    // 只比對畫面上看得到的欄位（貼文在背景動態裡的位置 y 等一直在變，不算）
+    const shown = items.map((p) => [p.id, p.img, p.user, p.likes, p.comments, p.video, p.carousel, p.time < midnight]);
+    const sig = JSON.stringify([doomntI18n.lang, feedPage, ended, loadingPage, shown]);
     if (sig === gridSig) return;
     gridSig = sig;
     saveCache();
 
-    let html = "";
-    for (const p of items) html += tileHtml(p, midnight);
-    if (loadingPage) html += '<div class="igc-grid-loading">' + t("loading") + "</div>";
-    else if (!items.length) html += '<div class="igc-grid-loading">' + t("noMorePosts") + "</div>";
-    grid.querySelector("#igc-grid-tiles").innerHTML = html;
+    const msg = loadingPage ? t("loading") : !items.length ? t("noMorePosts") : null;
+    renderTiles(grid.querySelector("#igc-grid-tiles"), items, midnight, msg);
 
     const [prev, label, next] = grid.querySelector("#igc-pager").children;
     const lastPage = ended && posts.length <= start + PAGE_SIZE;
