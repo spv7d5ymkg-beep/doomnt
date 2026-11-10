@@ -73,34 +73,50 @@ html.__fb-dark-mode #igc-pager button:hover:not(:disabled) {
   cursor: default;
 }
 
-/* 限時動態 / 貼文 切換按鈕 */
-/* 限時動態模式：限時動態列上方置中；貼文模式：格狀版面最上方（由 content.js 插入） */
-#igc-toggle {
+/* 左側選單：原本的「首頁」藏起來，換成「限時動態」「貼文」兩項（content.js 的 updateNav） */
+[data-igc-home] {
+  display: none !important;
+}
+[data-igc-nav] [data-igc-nav-label] {
+  font-weight: 400;
+}
+[data-igc-nav].igc-nav-active [data-igc-nav-label] {
+  font-weight: 700;
+}
+
+/* 載入畫面：Doomn't 標誌，三條橫槓由上而下輪流亮起，橘線輕輕伸縮 */
+#igc-loader {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
   display: flex;
-  width: fit-content;
-  margin: 12px auto 8px;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 999px;
-  background: rgb(var(--ig-highlight-background, 243, 245, 247));
-  font: 600 14px/1.2 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
-#igc-toggle a {
-  padding: 7px 14px;
-  border-radius: 999px;
-  color: rgb(var(--ig-secondary-text, 106, 113, 122));
-  text-decoration: none;
+.igc-loader-bar {
+  opacity: 0.15;
+  animation: igc-loader-bar 1.2s ease-in-out infinite;
 }
-#igc-toggle a:hover {
-  color: rgb(var(--ig-primary-text, 12, 16, 20));
+.igc-loader-bar:nth-of-type(3) {
+  animation-delay: 0.2s;
 }
-#igc-toggle[hidden] {
-  display: none;
+.igc-loader-bar:nth-of-type(4) {
+  animation-delay: 0.4s;
 }
-/* 目前的模式：反白 */
-#igc-toggle a.igc-active {
-  background: rgb(var(--ig-primary-text, 12, 16, 20));
-  color: rgb(var(--ig-primary-background, 255, 255, 255));
+.igc-loader-line {
+  transform-origin: 50px 50px;
+  animation: igc-loader-line 1.2s ease-in-out infinite;
+}
+@keyframes igc-loader-bar {
+  0%, 60%, 100% { opacity: 0.15; }
+  30% { opacity: 1; }
+}
+@keyframes igc-loader-line {
+  0%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(0.82); }
 }
 
 /* ========== 首頁「貼文」模式：格狀版面（見 content.js） ========== */
@@ -126,6 +142,9 @@ html.igc-grid .igc-unstack {
   outline: none;
   background: rgb(var(--ig-primary-background, 255, 255, 255));
   font: 14px/1.4 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif;
+}
+#igc-grid-head {
+  height: 16px;
 }
 #igc-grid-inner {
   max-width: 935px;

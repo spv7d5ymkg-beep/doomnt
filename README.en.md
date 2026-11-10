@@ -18,7 +18,8 @@ A Chrome extension that stops endless scrolling on YouTube and Instagram, and bl
 
 ## Instagram
 
-- The home page shows only stories by default; the "Stories / Posts" toggle above the stories switches to posts from accounts you follow
+- The home page shows only stories by default; the sidebar's Home button is replaced by "Stories" and "Posts" buttons, the latter showing posts from accounts you follow
+- While the home page loads, an animated Doomn't logo is shown; the stories appear all at once when everything has loaded
 - Stories are no longer a sideways-scrolling row: everyone's avatar wraps into rows so you see them all at once, unseen first and seen ones faded at the end
 - Clicking an avatar plays only that person's stories, with no other accounts on the sides, and returns to the homepage when they finish
 - Posts mode is a three-column grid like the Explore page, 12 posts per page with "← Previous / Next →" buttons instead of endless scrolling; hovering a tile shows the account, likes and comments, and clicking opens the full post in Instagram's own dialog

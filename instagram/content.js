@@ -773,14 +773,22 @@
         '<span class="igc-story-name">' + esc(s.name) + "</span></button>";
     }
     box.innerHTML = html;
-    markStoriesReady();
+    if (document.documentElement.classList.contains("igc-stories-ready")) return;
+    // 第一次顯示：等頭像圖片都載入好（最多 IMG_WAIT_MAX）再整頁顯示，不會先出現灰色的空圈圈
+    const imgs = [...box.querySelectorAll("img")];
+    Promise.race([
+      Promise.all(imgs.map((im) => im.decode().catch(() => {}))),
+      sleep(IMG_WAIT_MAX),
+    ]).then(markStoriesReady);
   }
+  const IMG_WAIT_MAX = 3000;
   // 首頁（限時動態模式）在限時動態全部載入、畫好之前整個 <main> 藏起來（style.css），
   // 重新整理時才不會先閃出原本的一列限時動態。萬一一直找不到限時動態列（例如沒有任何限時動態），
   // 最多藏 STORIES_WAIT_MAX 就照常顯示
   const STORIES_WAIT_MAX = 10000;
   function markStoriesReady() {
     document.documentElement.classList.add("igc-stories-ready");
+    document.getElementById("igc-loader")?.remove();
   }
   setTimeout(markStoriesReady, STORIES_WAIT_MAX);
   // 點頭像：不按原本那一列的按鈕（那樣打開的播放器兩側會有其他帳號，看完會接著播下一個人），
@@ -813,108 +821,144 @@
     renderStories();
   }
 
-  // 換語言時馬上更新格狀版面和切換按鈕的文字
+  // 換語言時馬上更新格狀版面和左側選單按鈕的文字
   doomntI18n.onChange(() => {
     renderGrid();
     renderStories();
     schedule();
   });
 
-  // ---------- 切換按鈕：限時動態 / 貼文 ----------
-  // 按鈕跟著首頁內容出現與消失，而不是只看網址：
-  // Instagram 換頁時網址先變，新頁面晚一點才載入，舊頁面也會多留一下。
-  // - 回到首頁：要等到「回來之後才出現的」首頁貼文出現，按鈕才顯示
-  //   （回來那一刻已經在畫面上的 <article> 屬於上一頁，不算）。
-  //   例外：之前在首頁就看過的貼文。看限時動態時，播放器是蓋在首頁上面的，
-  //   首頁的貼文一直都在；關掉播放器回來時，它們仍然是首頁內容，按鈕要馬上出現。
-  // - 離開首頁：首頁內容還在畫面上時按鈕繼續留著，最多 LINGER_MS。
-  let togglePath = null; // 上一次檢查時的路徑
-  let toggleStoriesOnly = null; // 上一次檢查時是不是限時動態模式
-  let staleArticles = new WeakSet(); // 回到首頁那一刻就已存在、而且不是首頁的 <article>
-  const homeArticles = new WeakSet(); // 在首頁上看過的 <article>
-  let homeAnchor = null; // 目前代表「首頁已載入」的貼文節點
-  let leftHomeAt = 0;
-
-  function homeShowing(p, storiesOnly) {
-    if (p === "/") {
-      // 同一個網址 / 下切換模式（例如點「← 追蹤中」回到限時動態）：重新找代表首頁的貼文
-      if (togglePath === "/" && toggleStoriesOnly !== storiesOnly) homeAnchor = null;
-      if (togglePath !== "/") {
-        // 剛打開分頁（togglePath 還是 null）時沒有上一頁，畫面上的都是首頁內容
-        staleArticles = new WeakSet();
-        if (togglePath !== null) {
-          for (const a of document.querySelectorAll("article")) {
-            if (!homeArticles.has(a)) staleArticles.add(a);
-          }
+  // ---------- 左側選單：「限時動態」「貼文」兩個按鈕取代「首頁」 ----------
+  // 找到選單裡的「首頁」那一項（連到 / 的連結，所在的清單有好幾項；最上面的 Instagram 標誌也連到 /，但不在清單裡），
+  // 複製它的外觀做成兩項插在它前面，原本的「首頁」藏起來（style.css 的 [data-igc-home]）。
+  // 複製出來的連結沒有 Instagram 的點擊處理，點下去就是一般的連結（整頁載入對應的模式）。
+  // 目前的模式：圖示變實心、文字變粗（和 Instagram 自己的選取狀態一樣）。
+  const SVG_OPEN = '<svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="24" height="24">';
+  const NAV_ICONS = {
+    // 限時動態：中間一個圓，外面一圈斷開的環
+    stories: (on) =>
+      SVG_OPEN +
+      '<circle cx="12" cy="12" r="5"' + (on ? ' fill="currentColor"' : "") + "/>" +
+      '<circle cx="12" cy="12" r="10" pathLength="60" stroke-dasharray="7 3" stroke-linecap="round" transform="rotate(-75 12 12)"/></svg>',
+    // 貼文：2×2 的格子
+    posts: (on) => {
+      let r = "";
+      for (const [x, y] of [[3, 3], [13.5, 3], [3, 13.5], [13.5, 13.5]]) {
+        r += '<rect x="' + x + '" y="' + y + '" width="7.5" height="7.5" rx="1.5"' + (on ? ' fill="currentColor"' : "") + "/>";
+      }
+      return SVG_OPEN + r + "</svg>";
+    },
+  };
+  const NAV_HREF = { stories: "/", posts: "/?variant=following" };
+  function findHomeItem() {
+    for (const a of document.querySelectorAll('a[href="/"]')) {
+      if (a.closest("[data-igc-nav]") || !a.querySelector("svg")) continue;
+      let item = a;
+      while (item.parentElement && item.parentElement.children.length === 1) item = item.parentElement;
+      if (item.parentElement && item.parentElement.children.length >= 4) return item;
+    }
+    return null;
+  }
+  function makeNavItem(home, mode) {
+    const item = home.cloneNode(true);
+    item.removeAttribute("data-igc-home");
+    item.setAttribute("data-igc-nav", mode);
+    const a = item.querySelector('a[href="/"]');
+    a.setAttribute("href", NAV_HREF[mode]);
+    // 文字：最裡面那個有字的節點
+    const label = [...item.querySelectorAll("span")].reverse().find((sp) => !sp.children.length && sp.textContent.trim());
+    if (label) label.setAttribute("data-igc-nav-label", "");
+    return item;
+  }
+  // 選單展開（滑鼠移上去）時，Instagram 用行內樣式讓每一項的文字滑出來；被藏起來的「首頁」也會跟著變，
+  // 複製出來的兩項不會。所以把「首頁」裡每個元素（圖示以外）的 style 照抄過來，文字才會一起出現、消失
+  let navWatched = null;
+  const navObserver = new MutationObserver(() => {
+    const home = document.querySelector("[data-igc-home]");
+    if (home) syncNavStyles(home, [...document.querySelectorAll("[data-igc-nav]")]);
+  });
+  function syncNavStyles(home, items) {
+    const plain = (root) => [root, ...root.querySelectorAll("*")].filter((e) => !e.closest("svg"));
+    const src = plain(home);
+    for (const it of items) {
+      const dst = plain(it);
+      if (dst.length !== src.length) continue;
+      for (let i = 1; i < src.length; i++) {
+        // 最外層（i = 0）不抄：「首頁」本身是 display: none
+        const st = src[i].getAttribute("style");
+        if (dst[i].getAttribute("style") !== st) {
+          if (st === null) dst[i].removeAttribute("style");
+          else dst[i].setAttribute("style", st);
         }
-        homeAnchor = null;
       }
-      if (!homeAnchor || !homeAnchor.isConnected) {
-        // 限時動態模式：markHomePosts 標記好的貼文區塊；貼文模式：動態裡的貼文
-        const sel = storiesOnly ? ".igc-home-posts article" : "main article";
-        homeAnchor = [...document.querySelectorAll(sel)].find((a) => !staleArticles.has(a)) || null;
-      }
-      if (!homeAnchor) return false;
-      // 首頁已載入：記下目前首頁上的貼文（上一頁留下的不算）
-      for (const a of document.querySelectorAll("main article")) {
-        if (!staleArticles.has(a)) homeArticles.add(a);
-      }
-      return true;
     }
-    if (togglePath === "/") leftHomeAt = Date.now();
-    if (homeAnchor && homeAnchor.isConnected && Date.now() - leftHomeAt < LINGER_MS) return true;
-    homeAnchor = null;
-    return false;
+  }
+  function updateNav(p, storiesOnly) {
+    let home = document.querySelector("[data-igc-home]");
+    if (!home || !home.isConnected) home = findHomeItem();
+    if (!home) return;
+    let items = [...document.querySelectorAll("[data-igc-nav]")];
+    if (!home.hasAttribute("data-igc-home") || items.length !== 2 || items[1].nextElementSibling !== home) {
+      for (const it of items) it.remove();
+      home.setAttribute("data-igc-home", "");
+      items = [makeNavItem(home, "stories"), makeNavItem(home, "posts")];
+      home.before(items[0], items[1]);
+    }
+    syncNavStyles(home, items);
+    // 「首頁」的 style 一變就馬上同步（選單展開的動畫很快，不等下一次檢查）
+    if (navWatched !== home) {
+      navWatched = home;
+      navObserver.disconnect();
+      navObserver.observe(home, { attributes: true, attributeFilter: ["style"], subtree: true });
+    }
+    const current = p === "/" ? (storiesOnly ? "stories" : "posts") : null;
+    for (const it of items) {
+      const mode = it.getAttribute("data-igc-nav");
+      const on = mode === current;
+      it.classList.toggle("igc-nav-active", on);
+      const a = it.querySelector("a");
+      const svg = a.querySelector("svg");
+      if (svg && svg.getAttribute("data-igc-on") !== String(on)) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = NAV_ICONS[mode](on);
+        const icon = tmp.firstChild;
+        icon.setAttribute("class", svg.getAttribute("class") || "");
+        icon.setAttribute("data-igc-on", String(on));
+        svg.replaceWith(icon);
+      }
+      const label = it.querySelector("[data-igc-nav-label]");
+      if (label) setText(label, t(mode));
+      if (a.getAttribute("aria-label") !== t(mode)) a.setAttribute("aria-label", t(mode));
+    }
   }
 
-  // 按鈕放在首頁內容裡、限時動態列的上方（不再固定浮在畫面上，才不會蓋住通知等側欄面板）。
-  // 從首頁貼文往上找，找到「前面有兄弟含 <canvas>」的那一層：那個兄弟就是限時動態列。
-  // 找不到限時動態列（例如貼文模式沒有它）時，放在第一篇貼文上方。
-  function toggleSpot(anchor) {
-    let el = anchor;
-    while (el.parentElement && el.parentElement !== document.body && el.parentElement.tagName !== "MAIN") {
-      for (let sib = el.previousElementSibling; sib; sib = sib.previousElementSibling) {
-        if (sib.id !== "igc-toggle" && sib.querySelector("canvas")) return sib;
-      }
-      el = el.parentElement;
-    }
-    return anchor;
-  }
-
-  function updateToggle(p, storiesOnly) {
-    const showing = homeShowing(p, storiesOnly);
-    togglePath = p;
-    toggleStoriesOnly = storiesOnly;
-    let box = document.getElementById("igc-toggle");
-    if (!showing) {
-      // 格狀版面上的按鈕跟著格狀版面（打開貼文對話框時格狀版面還在，按鈕也留著，版面才不會移動）
-      if (box && !box.closest("#igc-grid")) box.remove();
+  // ---------- 載入畫面：Doomn't 標誌的三條橫槓輪流亮起 ----------
+  // 首頁（限時動態模式）在限時動態全部載入前整個藏起來（見 markStoriesReady），這段時間在中間顯示這個動畫。
+  // 放在 <body> 最後、固定位置；左邊讓出左側選單的寬度，置中在選單右邊的空間。
+  const LOADER_SVG =
+    '<svg viewBox="0 0 100 100" width="72" height="72" aria-hidden="true">' +
+    '<rect width="100" height="100" rx="22" fill="#1E1E1E"/>' +
+    '<rect class="igc-loader-bar" x="26" y="16" width="48" height="18" rx="4" fill="#F4F3EF"/>' +
+    '<rect class="igc-loader-bar" x="26" y="41" width="48" height="18" rx="4" fill="#F4F3EF"/>' +
+    '<rect class="igc-loader-bar" x="26" y="66" width="48" height="18" rx="4" fill="#F4F3EF"/>' +
+    '<rect class="igc-loader-line" x="12" y="47" width="76" height="6" rx="3" fill="#FF4F1A"/></svg>';
+  function updateLoader() {
+    const root = document.documentElement;
+    const waiting = root.classList.contains("igc-stories-only") && !root.classList.contains("igc-stories-ready");
+    let el = document.getElementById("igc-loader");
+    if (!waiting) {
+      if (el) el.remove();
       return;
     }
-    // 離開首頁、舊內容還在時：按鈕就在舊首頁裡，跟著它一起消失；維持原本的選取狀態
-    if (p !== "/") return;
-    if (!box) {
-      box = document.createElement("div");
-      box.id = "igc-toggle";
-      box.innerHTML =
-        '<a data-mode="stories" href="/"></a><a data-mode="posts" href="/?variant=following"></a>';
+    if (!document.body) return;
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "igc-loader";
+      el.innerHTML = LOADER_SVG;
+      document.body.appendChild(el);
     }
-    box.hidden = false;
-    if (!storiesOnly) {
-      // 貼文模式：格狀版面的最上方
-      const head = document.getElementById("igc-grid-head");
-      if (head && box.parentElement !== head) head.appendChild(box);
-    } else {
-      // 限時動態模式：限時動態列上方
-      const spot = toggleSpot(homeAnchor);
-      if (box.nextElementSibling !== spot) spot.before(box);
-    }
-    const mode = storiesOnly ? "stories" : "posts";
-    for (const a of box.querySelectorAll("a")) {
-      const label = t(a.dataset.mode);
-      if (a.textContent !== label) a.textContent = label; // 只在不同時才改，否則每次都會觸發 MutationObserver
-      a.classList.toggle("igc-active", a.dataset.mode === mode);
-    }
+    const left = measureSidebar() + "px";
+    if (el.style.left !== left) el.style.left = left;
   }
 
   // ---------- 離開頁面時，舊內容繼續藏著 ----------
@@ -1119,8 +1163,9 @@
       filterFeed();
       showGrid();
     }
-    updateToggle(p, storiesOnly);
+    updateNav(p, storiesOnly);
     updateStories(p, storiesOnly);
+    updateLoader();
   }
 
   // 任何一次檢查出錯都只記錄下來，不能讓整個擋除功能停擺
