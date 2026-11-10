@@ -79,7 +79,7 @@
   let gridSig = ""; // 上次畫的內容，沒變就不重畫
   let openedAt = 0; // 最近一次從格狀版面打開貼文的時間
   let dialogSeenAt = 0; // 最近一次看到貼文對話框的時間
-  let peekArt = null; // 用自己的浮動視窗顯示的貼文（關閉留言的貼文，見 openPeek）
+  let overlayPost = null; // 用貼文頁做成的浮動視窗目前顯示的貼文（見 openOverlay）
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -225,7 +225,6 @@
   // 背景動態裡的影片看不見，不要讓它們一直播
   function pauseHiddenVideos() {
     for (const v of document.querySelectorAll("main video")) {
-      if (peekArt && peekArt.contains(v)) continue;
       if (!v.paused) v.pause();
     }
   }
@@ -325,8 +324,7 @@
       if (btn) {
         openedAt = Date.now();
         btn.click();
-      } else if (art) openPeek(art); // 關閉留言的貼文沒有「回應」按鈕，打不開 Instagram 的對話框
-      else location.assign("/p/" + id + "/");
+      } else openOverlay(id); // 關閉留言（沒有「回應」按鈕）或在動態裡找不到：打不開 Instagram 的對話框
     } finally {
       busy = false;
     }
@@ -352,39 +350,69 @@
     }
   }
 
-  // ---------- 關閉留言的貼文：自己的浮動視窗 ----------
-  // 這種貼文沒有「回應」按鈕，Instagram 不會開對話框（點時間只會進貼文頁）。
-  // 改把背景動態裡那一篇 <article> 本身固定在畫面中間顯示（style.css 的 [data-igc-peek]），
-  // 後面加一層半透明遮罩；按遮罩、× 或 Esc 關閉。貼文是 Instagram 自己的元件，按讚、影片、說明文字都照常運作。
-  // 開著時背景動態不捲動，否則 Instagram 可能把這篇移除。
-  function openPeek(art) {
-    closePeek();
-    peekArt = art;
-    art.setAttribute("data-igc-peek", "");
-    const shade = document.createElement("div");
-    shade.id = "igc-peek";
-    shade.innerHTML = '<button type="button" aria-label="Close">×</button>';
-    shade.addEventListener("click", closePeek);
-    document.body.appendChild(shade);
-    document.documentElement.classList.add("igc-peeking");
-    art.scrollTop = 0;
+  // ---------- 打不開 Instagram 對話框的貼文：用貼文頁做成浮動視窗 ----------
+  // 關閉留言的貼文沒有「回應」按鈕，Instagram 不會開對話框；背景動態裡找不到的貼文也一樣。
+  // 這時把網址換成 /p/ID/，讓 Instagram 自己的路由顯示貼文頁（不重新載入頁面，左邊是圖片／影片、右邊是說明和留言），
+  // 再用 CSS 把它變成蓋在格狀版面上的浮動視窗（style.css 的 html.igc-post-overlay）。
+  // 按視窗外面、× 或 Esc 回上一頁，回到格狀版面。
+  function openOverlay(id) {
+    overlayPost = id;
+    history.pushState(null, "", "/p/" + encodeURIComponent(id) + "/");
+    window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    // 從視窗裡點進個人頁再按上一頁時，跳過這一筆，直接回到格狀版面（見 skipDialogEntry）
+    const key = window.navigation && navigation.currentEntry && navigation.currentEntry.key;
+    if (key) {
+      dialogEntries.add(key);
+      saveDialogEntries();
+    }
   }
-  function closePeek() {
-    if (!peekArt) return;
-    const art = peekArt;
-    peekArt = null;
-    for (const v of art.querySelectorAll("video")) if (!v.paused) v.pause();
-    art.removeAttribute("data-igc-peek");
-    document.getElementById("igc-peek")?.remove();
-    document.documentElement.classList.remove("igc-peeking");
-    document.getElementById("igc-grid")?.focus({ preventScroll: true });
+  const overlayOn = () => !!overlayPost && location.pathname === "/p/" + overlayPost + "/";
+  function closeOverlay() {
+    if (overlayOn()) history.back();
   }
+  function updateOverlay(on) {
+    document.documentElement.classList.toggle("igc-post-overlay", on);
+    // 貼文頁外面有 Instagram 設了 z-index: 0 的區塊，把它困在格狀版面底下；開著時讓那幾層不建立堆疊
+    if (on) {
+      const main = document.querySelector("main");
+      for (let up = main && main.parentElement; up && up !== document.body; up = up.parentElement) {
+        if (!up.classList.contains("igc-unstack-post") && getComputedStyle(up).zIndex !== "auto") up.classList.add("igc-unstack-post");
+      }
+    }
+    let btn = document.getElementById("igc-post-close");
+    if (!on) {
+      btn?.remove();
+      return;
+    }
+    if (!btn && document.body) {
+      btn = document.createElement("button");
+      btn.id = "igc-post-close";
+      btn.type = "button";
+      btn.setAttribute("aria-label", "Close");
+      btn.textContent = "×";
+      btn.addEventListener("click", closeOverlay);
+      document.body.appendChild(btn);
+    }
+  }
+  // 點到視窗外面（貼文卡片以外的遮罩）就關閉
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (!overlayOn()) return;
+      const main = e.target.closest && e.target.closest("main");
+      if (!main || e.target.closest("main > div > :first-child")) return;
+      e.preventDefault();
+      e.stopPropagation();
+      closeOverlay();
+    },
+    true
+  );
   window.addEventListener(
     "keydown",
     (e) => {
-      if (peekArt && e.key === "Escape") {
+      if (overlayOn() && e.key === "Escape") {
         e.stopPropagation();
-        closePeek();
+        closeOverlay();
       }
     },
     true
@@ -642,7 +670,7 @@
     pauseHiddenVideos();
     collect();
     renderGrid();
-    if (busy || peekArt || opening) return;
+    if (busy || opening) return;
     // 本頁有還沒有圖片的格子：先補圖片
     const items = posts.slice(feedPage * PAGE_SIZE, (feedPage + 1) * PAGE_SIZE);
     if (items.some((p) => !p.img && (p.imgTries || 0) < 3)) {
@@ -1201,12 +1229,13 @@
     // 這兩段空檔也要保留，否則格狀版面會被拿掉，回來時捲動位置歸零
     const now = Date.now();
     if (document.querySelector('[role="dialog"]')) dialogSeenAt = now;
+    if (overlayPost && !overlayOn()) overlayPost = null;
     const overGrid =
       !postsMode &&
       POST_PAGE_RE.test(p) &&
       document.getElementById("igc-grid") &&
-      (now - dialogSeenAt < 1000 || now - openedAt < 3000);
-    if (peekArt && (!postsMode || !peekArt.isConnected)) closePeek();
+      (now - dialogSeenAt < 1000 || now - openedAt < 3000 || overlayOn());
+    updateOverlay(!!overGrid && overlayOn());
     if (!postsMode && !overGrid) hideGrid();
     // 記下「從格狀版面打開的對話框」這一筆瀏覽紀錄（見 skipDialogEntry）
     if (overGrid && window.navigation && document.querySelector('[role="dialog"]')) {

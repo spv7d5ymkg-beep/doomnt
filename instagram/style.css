@@ -246,32 +246,44 @@ html.igc-grid .igc-unstack {
   color: rgb(var(--ig-secondary-text, 106, 113, 122));
 }
 
-/* 關閉留言的貼文：背景動態裡那一篇固定在畫面中間（content.js 的 openPeek） */
-html.igc-peeking [data-igc-peek] {
-  visibility: visible !important;
+/* 打不開 Instagram 對話框的貼文：貼文頁變成蓋在格狀版面上的浮動視窗（content.js 的 openOverlay） */
+html.igc-post-overlay main {
   position: fixed !important;
-  z-index: 21 !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  width: min(470px, calc(100vw - 32px)) !important;
-  max-height: calc(100vh - 48px) !important;
-  overflow-y: auto !important;
+  inset: 0 !important;
+  z-index: 20 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   margin: 0 !important;
-  padding-bottom: 8px !important;
-  border-radius: 8px;
+  padding: 24px !important;
+  overflow: auto !important;
+  visibility: visible !important;
+  background: rgba(0, 0, 0, 0.65) !important;
+}
+html.igc-post-overlay .igc-unstack-post {
+  z-index: auto !important;
+}
+/* 貼文卡片以外的東西（分隔線、「更多貼文」）不顯示 */
+html.igc-post-overlay main > div {
+  margin: auto !important;
+  padding: 0 !important;
+}
+html.igc-post-overlay main > div > :not(:first-child),
+html.igc-post-overlay main ~ footer {
+  display: none !important;
+}
+html.igc-post-overlay main > div > :first-child {
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 4px;
+  overflow: hidden;
   background: rgb(var(--ig-primary-background, 255, 255, 255));
 }
-#igc-peek {
+#igc-post-close {
   position: fixed;
-  inset: 0;
-  z-index: 20;
-  background: rgba(0, 0, 0, 0.65);
-}
-#igc-peek button {
-  position: absolute;
   top: 12px;
   right: 20px;
+  z-index: 21;
   padding: 0;
   border: 0;
   background: none;
