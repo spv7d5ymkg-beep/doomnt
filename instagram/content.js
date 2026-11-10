@@ -1117,6 +1117,76 @@
     }
   }
 
+  // ---------- 限時動態不自動播放 ----------
+  // 播放器裡的每一則一出現就按 Instagram 自己的「暫停」：影片不會自己播，照片的進度條也不會跑，
+  // 所以不會自己跳到下一則（要自己點左右換）。
+  // 影片想看就按「播放」（使用者自己按的才算）；看到最後會在結束前停住，同樣不會自己跳到下一則。
+  const PAUSE_LABEL_RE = /^(Pause|暫停)$/;
+  const PLAY_LABEL_RE = /^(Play|播放)$/;
+  let storyItem = null; // 目前這一則（圖片或影片的網址）
+  let storyUserPlayed = false; // 這一則是使用者自己按了播放的影片
+  const inStoryViewer = () => /^\/stories\//.test(location.pathname);
+  function storyVideo() {
+    return [...document.querySelectorAll("video")].find((v) => v.getBoundingClientRect().width > 100) || null;
+  }
+  function storyItemKey() {
+    const v = storyVideo();
+    if (v) return "v:" + (v.currentSrc || v.src || v.poster);
+    const img = [...document.querySelectorAll("img")].find((i) => {
+      const r = i.getBoundingClientRect();
+      return r.width > 200 && r.height > 300;
+    });
+    return img ? "i:" + img.src : null;
+  }
+  function storyControl(re) {
+    const svg = [...document.querySelectorAll("svg[aria-label]")].find(
+      (sv) => re.test(sv.getAttribute("aria-label")) && sv.getBoundingClientRect().width > 0
+    );
+    return svg ? svg.closest('[role="button"], button') || svg.parentElement : null;
+  }
+  function holdStory() {
+    if (!inStoryViewer()) return;
+    const key = storyItemKey();
+    if (!key) return;
+    if (key !== storyItem) {
+      storyItem = key;
+      storyUserPlayed = false;
+    }
+    if (storyUserPlayed) return;
+    const pause = storyControl(PAUSE_LABEL_RE);
+    if (pause) pause.click();
+  }
+  // 使用者自己按「播放」（或空白鍵）：這一則影片讓它播
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (!e.isTrusted || !inStoryViewer()) return;
+      const play = storyControl(PLAY_LABEL_RE);
+      if (play && (play === e.target || play.contains(e.target)) && storyVideo()) storyUserPlayed = true;
+    },
+    true
+  );
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.isTrusted && inStoryViewer() && e.key === " " && storyControl(PLAY_LABEL_RE) && storyVideo()) {
+        storyUserPlayed = true;
+      }
+    },
+    true
+  );
+  // 影片一開始播就檢查（不是使用者按的就馬上暫停）；快播完時停住，不讓它跳到下一則
+  document.addEventListener("play", () => holdStory(), true);
+  document.addEventListener(
+    "timeupdate",
+    (e) => {
+      const v = e.target;
+      if (!inStoryViewer() || !storyUserPlayed || v !== storyVideo() || !v.duration) return;
+      if (v.currentTime >= v.duration - 0.35) storyControl(PAUSE_LABEL_RE)?.click();
+    },
+    true
+  );
+
   // ---------- 主檢查 ----------
   // ---------- 對話框裡的直式影片放大 ----------
   // Instagram 的貼文對話框把影片放在 4:5 的框裡（padding-bottom 撐出比例的那層），
@@ -1268,6 +1338,7 @@
     updateNav(p, storiesOnly);
     updateStories(p, storiesOnly);
     updateLoader();
+    holdStory();
   }
 
   // 任何一次檢查出錯都只記錄下來，不能讓整個擋除功能停擺
@@ -1351,6 +1422,8 @@
   new MutationObserver(() => {
     // 對話框影片要在第一次畫出來之前就藏好，不能等 requestAnimationFrame
     if (document.querySelector('[role="dialog"] video')) fitDialogVideos();
+    // 限時動態的下一則一出現就暫停，不等下一次檢查
+    if (inStoryViewer()) holdStory();
     schedule();
   }).observe(document.documentElement, {
     childList: true,
