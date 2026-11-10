@@ -73,6 +73,12 @@ html.__fb-dark-mode #igc-pager button:hover:not(:disabled) {
   cursor: default;
 }
 
+/* Instagram 自己的載入畫面（中間的 Instagram 標誌和「from Meta」，固定蓋在整頁最上層）：
+   完全不顯示。首頁有自己的載入動畫（#igc-loader），貼文頁的格狀版面用快取馬上畫出來，它只會擋在前面 */
+#splash-screen {
+  display: none !important;
+}
+
 /* 左側選單：原本的「首頁」藏起來，換成「限時動態」「貼文」兩項（content.js 的 updateNav） */
 [data-igc-home] {
   display: none !important;
