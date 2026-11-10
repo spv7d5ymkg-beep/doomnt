@@ -654,6 +654,8 @@
   let storyStop = false;
   let storySig = "";
   let storyPrevPath = null;
+  let storyReady = false; // 這一列第一次掃描完成了沒（完成前不顯示頭像，只顯示「載入中」）
+  let viewerFromHome = false; // 目前的限時動態播放器是從首頁打開的
 
   function findTray() {
     const posts = document.querySelector(".igc-home-posts");
@@ -717,7 +719,6 @@
         let still = 0;
         for (let i = 0; i < 120 && !storyStop && tray === storyTray && tray.isConnected; i++) {
           readTray(tray, sc);
-          renderStories();
           if (sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 2) {
             // 到底了：等一下看 Instagram 會不會再載入更多
             still = sc.scrollWidth === lastWidth ? still + 1 : 0;
@@ -733,6 +734,7 @@
       } else readTray(tray, tray);
     } finally {
       storyScanning = false;
+      if (tray === storyTray && !storyStop) storyReady = true;
       // 掃描途中 Instagram 換了一個新的限時動態列：重新掃新的那一列
       if (storyTray && storyTray !== tray && storyTray.isConnected) scanTray(storyTray);
       else renderStories();
@@ -751,8 +753,17 @@
       });
     }
     if (box.previousElementSibling !== tray) tray.after(box);
+    // 第一次掃描完成前只顯示「載入中」，全部載入完才一次顯示（不會一個一個冒出來）；
+    // 之後重新掃描（更新看過的狀態）時保留原本的版面，掃完才更新
+    if (!storyReady) {
+      const loading = '<span class="igc-stories-loading">' + t("loading") + "</span>";
+      if (box.innerHTML !== loading) box.innerHTML = loading;
+      storySig = "";
+      return;
+    }
+    if (storyScanning) return;
     const list = [...stories.values()].sort((a, b) => a.seen - b.seen || a.x - b.x);
-    const sig = JSON.stringify([doomntI18n.lang, storyScanning, list]);
+    const sig = JSON.stringify([doomntI18n.lang, list]);
     if (sig === storySig) return;
     storySig = sig;
     const esc = (s) => String(s || "").replace(/[&<>"]/g, (c) => "&#" + c.charCodeAt(0) + ";");
@@ -763,28 +774,17 @@
         '<span class="igc-story-ring">' + (s.img ? '<img src="' + esc(s.img) + '" alt="" draggable="false">' : "") + "</span>" +
         '<span class="igc-story-name">' + esc(s.name) + "</span></button>";
     }
-    if (storyScanning) html += '<span class="igc-stories-loading">' + t("loading") + "</span>";
     box.innerHTML = html;
   }
-  async function openStory(name) {
-    const tray = storyTray;
-    const s = stories.get(name);
-    if (!tray || !s) return;
-    storyStop = true;
-    for (let i = 0; storyScanning && i < 20; i++) await sleep(50);
-    const sc = trayScroller(tray);
-    const find = () =>
-      [...tray.querySelectorAll("li")].find((li) => li.textContent.trim() === name);
-    let li = find();
-    if (!li && sc) {
-      sc.scrollLeft = Math.max(0, s.x - sc.clientWidth / 2);
-      for (let i = 0; !li && i < 20; i++) {
-        await sleep(50);
-        li = find();
-      }
-    }
-    const btn = li && li.querySelector('[role="button"]');
-    if (btn) btn.click();
+  // 點頭像：不按原本那一列的按鈕（那樣打開的播放器兩側會有其他帳號，看完會接著播下一個人），
+  // 而是直接把網址換成 /stories/帳號/，讓 Instagram 自己的路由打開播放器：
+  // 這樣只會播這個人的限時動態，兩側沒有其他帳號，看完自動關閉、回到首頁（和從個人頁點大頭貼一樣）。
+  // 不重新載入頁面，也不會出現「以某某身分觀看？」的確認。
+  function openStory(name) {
+    if (!stories.has(name)) return;
+    storyStop = true; // 背景掃描先停下來
+    history.pushState(null, "", "/stories/" + encodeURIComponent(name) + "/");
+    window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
   }
   function updateStories(p, storiesOnly) {
     const back = storyPrevPath !== null && storyPrevPath !== "/" && p === "/";
@@ -797,6 +797,7 @@
       storyTray = tray;
       stories = new Map();
       storySig = "";
+      storyReady = false;
       scanTray(tray);
     } else if (back && !storyScanning) scanTray(tray); // 從限時動態播放器（或別頁）回來：更新看過的狀態
     renderStories();
@@ -1082,11 +1083,17 @@
     // 必須在拿掉 class 之前標記，中間不能有一次重繪
     if (root.classList.contains("igc-explore") && !explore) linger(EXPLORE_GRID_SEL);
     // 首頁切到「貼文」模式（網址仍是 /）時不標記，那是使用者要看的
-    if (root.classList.contains("igc-stories-only") && !storiesOnly && p !== "/") {
+    // 從首頁點頭像打開限時動態播放器時（網址變 /stories/…），首頁還在播放器後面、播放器晚一點才出現；
+    // 這段期間繼續用限時動態模式的版面，否則原本那一列限時動態和動態貼文會閃出來
+    const storyViewer = /^\/stories\//.test(p);
+    if (storiesOnly) viewerFromHome = true;
+    else if (!storyViewer) viewerFromHome = false;
+    const keepStories = storyViewer && viewerFromHome;
+    if (root.classList.contains("igc-stories-only") && !storiesOnly && !keepStories && p !== "/") {
       linger(HOME_POSTS_SEL);
     }
     root.classList.toggle("igc-explore", explore);
-    root.classList.toggle("igc-stories-only", storiesOnly);
+    root.classList.toggle("igc-stories-only", storiesOnly || keepStories);
     // 記錄目前被藏頁面上的連結；換到不同頁面就重新開始記
     const blockedPage = explore ? "explore" : storiesOnly ? "home" : null;
     if (blockedPage !== trackedPage) {
