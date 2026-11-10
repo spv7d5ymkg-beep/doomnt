@@ -354,12 +354,9 @@ html.igc-stories-only #igc-stories {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 看過的：灰色外圈、變淡，排在後面；滑鼠移上去恢復 */
+/* 看過的：灰色外圈、變淡，排在後面（滑鼠移上去也維持灰色） */
 .igc-story-seen {
   opacity: 0.45;
-}
-.igc-story-seen:hover {
-  opacity: 1;
 }
 .igc-story-seen .igc-story-ring {
   background: rgba(128, 128, 128, 0.45);
