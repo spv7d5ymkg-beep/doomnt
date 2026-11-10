@@ -756,8 +756,6 @@
     // 第一次掃描完成前只顯示「載入中」，全部載入完才一次顯示（不會一個一個冒出來）；
     // 之後重新掃描（更新看過的狀態）時保留原本的版面，掃完才更新
     if (!storyReady) {
-      const loading = '<span class="igc-stories-loading">' + t("loading") + "</span>";
-      if (box.innerHTML !== loading) box.innerHTML = loading;
       storySig = "";
       return;
     }
@@ -775,7 +773,16 @@
         '<span class="igc-story-name">' + esc(s.name) + "</span></button>";
     }
     box.innerHTML = html;
+    markStoriesReady();
   }
+  // 首頁（限時動態模式）在限時動態全部載入、畫好之前整個 <main> 藏起來（style.css），
+  // 重新整理時才不會先閃出原本的一列限時動態。萬一一直找不到限時動態列（例如沒有任何限時動態），
+  // 最多藏 STORIES_WAIT_MAX 就照常顯示
+  const STORIES_WAIT_MAX = 10000;
+  function markStoriesReady() {
+    document.documentElement.classList.add("igc-stories-ready");
+  }
+  setTimeout(markStoriesReady, STORIES_WAIT_MAX);
   // 點頭像：不按原本那一列的按鈕（那樣打開的播放器兩側會有其他帳號，看完會接著播下一個人），
   // 而是直接把網址換成 /stories/帳號/，讓 Instagram 自己的路由打開播放器：
   // 這樣只會播這個人的限時動態，兩側沒有其他帳號，看完自動關閉、回到首頁（和從個人頁點大頭貼一樣）。
@@ -794,10 +801,13 @@
     if (!tray) return;
     tray.setAttribute("data-igc-tray", "");
     if (tray !== storyTray) {
+      // 新的一列（第一次載入，或 Instagram 重新渲染）：重新掃描。
+      // 已經顯示過的話保留原本的頭像，掃完才更新，不會整個消失再出現
       storyTray = tray;
-      stories = new Map();
-      storySig = "";
-      storyReady = false;
+      if (!storyReady) {
+        stories = new Map();
+        storySig = "";
+      }
       scanTray(tray);
     } else if (back && !storyScanning) scanTray(tray); // 從限時動態播放器（或別頁）回來：更新看過的狀態
     renderStories();

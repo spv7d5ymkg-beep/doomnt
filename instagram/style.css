@@ -269,6 +269,11 @@ html.igc-grid:not(.igc-hide-dm):not(:has([role="dialog"])) [data-igc-dm] {
 }
 
 /* 限時動態：原本的一列藏起來（還留在頁面上，content.js 在背景捲它、按它的按鈕），改顯示換行排列的頭像 */
+/* 重新整理首頁時：限時動態全部載入、畫好之前整個 main 和下方的頁尾連結都不顯示（content.js 載入完加上 .igc-stories-ready） */
+html.igc-stories-only:not(.igc-stories-ready) main,
+html.igc-stories-only:not(.igc-stories-ready) main ~ footer {
+  visibility: hidden !important;
+}
 html.igc-stories-only [data-igc-tray] {
   height: 0 !important;
   min-height: 0 !important;
