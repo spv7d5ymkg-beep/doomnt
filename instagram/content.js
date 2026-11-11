@@ -5,6 +5,12 @@
     if (el.textContent !== s) el.textContent = s;
   };
 
+  // 只在真的有變時才改 class：classList.add／toggle 就算沒變也會產生一筆屬性變動，
+  // Instagram 自己的監聽和樣式重算都會跟著跑（每 250ms 檢查一次，累積起來不少）
+  const setClass = (el, name, on) => {
+    if (el.classList.contains(name) !== on) el.classList.toggle(name, on);
+  };
+
   // ---------- 路徑規則 ----------
   // 單支 Reels（/reels/ID/、/reel/ID/）→ 改用單篇貼文頁 /p/ID/ 開啟：可以看，但不能往下滑
   const SINGLE_REEL_RE = /^\/reels?\/([A-Za-z0-9_-]+)\/?$/;
@@ -156,6 +162,8 @@
       if (!p.live) {
         p.live = true; // 這次載入頁面時在動態裡看到了（不只是快取裡的）
         liveCount++;
+        // 動態是照時間排的：新載入的貼文已經接上快取裡的 → 更舊的快取裡都有，不用再往下捲去重新載入
+        if (p.cached) caughtUp = true;
       }
       // 已經有圖片網址（快取裡的）就不換：同一張圖每次載入網址都不同，換了就得重新下載。
       // 舊網址過期載入失敗時會被清掉（ensureGrid 的 error 監聽），這裡再補上新的
@@ -189,6 +197,9 @@
   const CACHE_POSTS = 72;
   let gridCache = null; // 讀進來的快取貼文（還沒放進 posts 的）
   let liveCount = 0; // 這次載入頁面時，動態裡實際看到的貼文數
+  let caughtUp = false; // 新載入的貼文已經接上快取（見 collect）
+  // 目前可以用的貼文數：接上快取後，快取裡的也算；否則只算這次實際載入的
+  const haveCount = () => (caughtUp ? posts.length : liveCount);
   chrome.storage.local.get({ [CACHE_KEY]: null }, (r) => {
     const c = r[CACHE_KEY];
     if (!c || !Array.isArray(c.posts) || Date.now() - c.at > CACHE_MAX_AGE) return;
@@ -199,7 +210,7 @@
     if (!gridCache) return;
     for (const c of gridCache) {
       if (!c || !c.id || postById.has(c.id)) continue;
-      const p = Object.assign({}, c);
+      const p = Object.assign({ cached: true }, c);
       postById.set(p.id, p);
       posts.push(p);
     }
@@ -233,9 +244,9 @@
     if (busy) return;
     busy = true;
     try {
-      for (let i = 0; i < 250 && liveCount < n && !stopLoading && gridActive(); i++) {
+      for (let i = 0; i < 250 && haveCount() < n && !stopLoading && gridActive(); i++) {
         collect();
-        if (liveCount >= n || feedEnded()) break;
+        if (haveCount() >= n || feedEnded()) break;
         window.scrollBy(0, Math.round(window.innerHeight * 0.8));
         await sleep(120);
         // 等畫面附近的貼文出現圖片再往下捲（最多 1 秒）：捲太快的話貼文還沒載入圖片就被 Instagram 移除，
@@ -327,26 +338,70 @@
   // 這時把網址換成 /p/ID/，讓 Instagram 自己的路由顯示貼文頁（不重新載入頁面，左邊是圖片／影片、右邊是說明和留言），
   // 再用 CSS 把它變成蓋在格狀版面上的浮動視窗（style.css 的 html.igc-post-overlay）。
   // 按視窗外面、× 或 Esc 回上一頁，回到格狀版面。
+  // Instagram 換頁時會佔住主執行緒 0.3～1 秒（畫面凍結），貼文內容還要再等 0.5～2 秒才載入。
+  // 所以打開時先畫出遮罩和載入動畫、等瀏覽器畫完這一格才換網址；貼文卡片載入好之前不顯示（只看到載入動畫）。
+  // 關閉時也一樣：先把視窗藏起來、畫完這一格才回上一頁，按下去馬上就關，不會卡住一秒才消失。
+  let overlayPending = false; // 已經按了格子、還沒換網址
+  let overlayClosing = 0; // 開始關閉的時間（0 = 沒有在關）
+  let overlayShownAt = 0;
+  const OVERLAY_LOAD_MAX = 6000; // 貼文一直沒載入好：最多等這麼久就照常顯示
+  const afterPaint = (fn) => requestAnimationFrame(() => setTimeout(fn, 0));
   function openOverlay(id) {
     overlayPost = id;
+    overlayPending = true;
+    overlayShownAt = Date.now();
     // 背景動態的 <main> 標起來：浮動視窗的樣式只套用到貼文頁的 <main>。
     // 網址變了之後 Instagram 要約半秒才換上貼文頁，這段期間只顯示遮罩，不會把背景動態當成視窗顯示出來
     for (const m of document.querySelectorAll("main")) m.setAttribute("data-igc-feed", "");
-    history.pushState(null, "", "/p/" + encodeURIComponent(id) + "/");
-    window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
-    // 從視窗裡點進個人頁再按上一頁時，跳過這一筆，直接回到格狀版面（見 skipDialogEntry）
-    const key = window.navigation && navigation.currentEntry && navigation.currentEntry.key;
-    if (key) {
-      dialogEntries.add(key);
-      saveDialogEntries();
-    }
+    updateOverlay(true);
+    afterPaint(() => {
+      if (!overlayPending || overlayPost !== id) return;
+      overlayPending = false;
+      history.pushState(null, "", "/p/" + encodeURIComponent(id) + "/");
+      window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+      // 從視窗裡點進個人頁再按上一頁時，跳過這一筆，直接回到格狀版面（見 skipDialogEntry）
+      const key = window.navigation && navigation.currentEntry && navigation.currentEntry.key;
+      if (key) {
+        dialogEntries.add(key);
+        saveDialogEntries();
+      }
+    });
   }
   const overlayOn = () => !!overlayPost && location.pathname === "/p/" + overlayPost + "/";
   function closeOverlay() {
-    if (overlayOn()) history.back();
+    if (overlayPending) {
+      // 還沒換網址就關：直接取消
+      overlayPending = false;
+      overlayPost = null;
+      updateOverlay(false);
+      return;
+    }
+    if (!overlayOn() || overlayClosing) return;
+    overlayClosing = Date.now();
+    setClass(document.documentElement, "igc-post-closing", true);
+    afterPaint(() => history.back());
   }
   function updateOverlay(on) {
-    document.documentElement.classList.toggle("igc-post-overlay", on);
+    const root = document.documentElement;
+    if (!on || (overlayClosing && Date.now() - overlayClosing > 3000)) {
+      overlayClosing = 0;
+      setClass(root, "igc-post-closing", false);
+    }
+    // 貼文卡片出現（不是 Instagram 的小轉圈）之前：只顯示載入動畫
+    let loading = false;
+    if (on && !overlayClosing) {
+      const card = document.querySelector("main:not([data-igc-feed]) > div > :first-child");
+      loading = (!card || card.getBoundingClientRect().height < 100) && Date.now() - overlayShownAt < OVERLAY_LOAD_MAX;
+    }
+    setClass(root, "igc-post-loading", loading);
+    let spin = document.getElementById("igc-post-loader");
+    if (loading && !spin && document.body) {
+      spin = document.createElement("div");
+      spin.id = "igc-post-loader";
+      spin.innerHTML = LOADER_SVG;
+      document.body.appendChild(spin);
+    } else if (!loading && spin) spin.remove();
+    setClass(root, "igc-post-overlay", on);
     // 貼文頁外面有 Instagram 設了 z-index: 0 的區塊，把它困在格狀版面底下；開著時讓那幾層不建立堆疊
     if (on) {
       const main = document.querySelector("main:not([data-igc-feed])");
@@ -381,8 +436,8 @@
   document.addEventListener(
     "click",
     (e) => {
-      if (!overlayOn()) return;
-      const main = e.target.closest && e.target.closest("main");
+      if (!overlayOn() || !e.target.closest) return;
+      const main = e.target.closest("main");
       if (!main || e.target.closest("main > div > :first-child")) return;
       e.preventDefault();
       e.stopPropagation();
@@ -393,7 +448,7 @@
   window.addEventListener(
     "keydown",
     (e) => {
-      if (overlayOn() && e.key === "Escape") {
+      if ((overlayOn() || overlayPending) && e.key === "Escape") {
         e.stopPropagation();
         closeOverlay();
       }
@@ -474,7 +529,7 @@
     }
     if (el && el !== document.body) {
       for (let up = el.parentElement; up && up !== document.body; up = up.parentElement) {
-        if (up.classList.contains("igc-unstack") || getComputedStyle(up).zIndex !== "auto") up.classList.add("igc-unstack");
+        if (!up.classList.contains("igc-unstack") && getComputedStyle(up).zIndex !== "auto") up.classList.add("igc-unstack");
       }
     }
     if (right) sidebarMin = sidebarMin ? Math.min(sidebarMin, right) : right;
@@ -491,7 +546,7 @@
   // 這一列從畫面最左邊開始（左側選單蓋在上面），左邊補上選單的寬度，才會在選單右邊的空間置中。
   // 彈出視窗的兩個開關（預設都藏起來）：設定名稱 → <html> 上的 class
   const HIDE_SETTINGS = { igSuggestHidden: "igc-hide-suggest", igDmHidden: "igc-hide-dm" };
-  const applyHide = (key, on) => document.documentElement.classList.toggle(HIDE_SETTINGS[key], on !== false);
+  const applyHide = (key, on) => setClass(document.documentElement, HIDE_SETTINGS[key], on !== false);
   for (const key in HIDE_SETTINGS) applyHide(key, true);
   chrome.storage.local.get({ igSuggestHidden: true, igDmHidden: true }, (r) => {
     for (const key in HIDE_SETTINGS) applyHide(key, r[key]);
@@ -645,10 +700,11 @@
       posts = [];
       postById = new Map();
       liveCount = 0;
+      caughtUp = false;
       gridSig = "";
       seedFromCache();
     }
-    document.documentElement.classList.add("igc-grid");
+    setClass(document.documentElement, "igc-grid", true);
     ensureGrid();
     pauseHiddenVideos();
     collect();
@@ -661,7 +717,7 @@
       return;
     }
     // 本頁和下一頁還沒載滿：在背景繼續捲動載入
-    if (!feedEnded() && liveCount < (feedPage + 1 + PREFETCH_PAGES) * PAGE_SIZE) {
+    if (!feedEnded() && haveCount() < (feedPage + 1 + PREFETCH_PAGES) * PAGE_SIZE) {
       loadUntil((feedPage + 1 + PREFETCH_PAGES) * PAGE_SIZE);
     }
   }
@@ -693,7 +749,7 @@
       stopLoading = true;
       window.scrollTo(0, 0);
     }
-    document.documentElement.classList.remove("igc-grid");
+    setClass(document.documentElement, "igc-grid", false);
     gridSig = "";
   }
 
@@ -731,7 +787,7 @@
     while (el.parentElement && el.parentElement.tagName !== "MAIN") {
       for (let sib = el.previousElementSibling; sib; sib = sib.previousElementSibling) {
         if (sib.querySelector("canvas")) {
-          el.classList.add("igc-home-posts");
+          if (!el.classList.contains("igc-home-posts")) el.classList.add("igc-home-posts");
           return;
         }
       }
@@ -921,7 +977,9 @@
       storySig = "";
       return;
     }
-    if (storyScanning) return;
+    // 重新掃描中：保留原本的版面，掃完才更新。但版面是空的（Instagram 換了新的 <main>，例如從訊息頁回來）
+    // 就先用記得的名單畫出來，不要空白好幾秒
+    if (storyScanning && (box.children.length || !stories.size)) return;
     const list = [...stories.values()].sort((a, b) => a.seen - b.seen || a.x - b.x);
     const sig = JSON.stringify([doomntI18n.lang, list]);
     if (sig === storySig) return;
@@ -949,7 +1007,7 @@
   // 最多藏 STORIES_WAIT_MAX 就照常顯示
   const STORIES_WAIT_MAX = 10000;
   function markStoriesReady() {
-    document.documentElement.classList.add("igc-stories-ready");
+    setClass(document.documentElement, "igc-stories-ready", true);
     document.getElementById("igc-loader")?.remove();
   }
   // 計時從「第一次進到首頁限時動態模式」開始算（不是從腳本載入：先在別頁待了一陣子再回首頁，
@@ -1063,6 +1121,29 @@
     if (label) label.setAttribute("data-igc-nav-label", "");
     return item;
   }
+  // 點這兩項：不重新載入整頁（要 3～6 秒），直接換網址讓 Instagram 自己的路由切換（約 1 秒），
+  // 已經掃過的限時動態、載入過的格狀版面都還在，切回來馬上就有。
+  // 按著 ⌘／Ctrl／Shift 或用中鍵點的照一般連結處理（開新分頁）
+  document.addEventListener(
+    "click",
+    (e) => {
+      const a = e.target.closest && e.target.closest("[data-igc-nav] a");
+      if (!a || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const href = a.getAttribute("href");
+      if (location.pathname + location.search === href) {
+        // 已經在這一頁：回到最上面
+        const grid = document.getElementById("igc-grid");
+        if (grid) grid.scrollTop = 0;
+        else window.scrollTo(0, 0);
+        return;
+      }
+      history.pushState(null, "", href);
+      window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    },
+    true
+  );
   // 選單展開（滑鼠移上去）時，Instagram 用行內樣式讓每一項的文字滑出來；被藏起來的「首頁」也會跟著變，
   // 複製出來的兩項不會。所以把「首頁」裡每個元素（圖示以外）的 style 照抄過來，文字才會一起出現、消失
   let navWatched = null;
@@ -1108,7 +1189,7 @@
     for (const it of items) {
       const mode = it.getAttribute("data-igc-nav");
       const on = mode === current;
-      it.classList.toggle("igc-nav-active", on);
+      setClass(it, "igc-nav-active", on);
       const a = it.querySelector("a");
       const svg = a.querySelector("svg");
       if (svg && svg.getAttribute("data-igc-on") !== String(on)) {
@@ -1285,6 +1366,7 @@
     true
   );
 
+  let wasStoriesOnly = false;
   function check() {
     const p = location.pathname;
     if (REELS_BLOCK_RE.test(p)) {
@@ -1310,13 +1392,13 @@
     // 這兩段空檔也要保留，否則格狀版面會被拿掉，回來時捲動位置歸零
     const now = Date.now();
     if (document.querySelector('[role="dialog"]')) dialogSeenAt = now;
-    if (overlayPost && !overlayOn()) overlayPost = null;
+    if (overlayPost && !overlayPending && !overlayOn()) overlayPost = null;
     const overGrid =
       !postsMode &&
       POST_PAGE_RE.test(p) &&
       document.getElementById("igc-grid") &&
       (now - dialogSeenAt < 1000 || overlayOn());
-    updateOverlay(!!overGrid && overlayOn());
+    updateOverlay(overlayPending || (!!overGrid && overlayOn()));
     if (!postsMode && !overGrid) hideGrid();
     // 記下「從格狀版面打開的對話框」這一筆瀏覽紀錄（見 skipDialogEntry）
     if (overGrid && window.navigation && document.querySelector('[role="dialog"]')) {
@@ -1343,8 +1425,11 @@
     }
     // 回到首頁：首頁的內容不用藏；其他頁面：時間到了就放開
     releaseStale(p === "/");
-    root.classList.toggle("igc-explore", explore);
-    root.classList.toggle("igc-stories-only", storiesOnly || keepStories);
+    setClass(root, "igc-explore", explore);
+    setClass(root, "igc-stories-only", storiesOnly || keepStories);
+    // 剛切到限時動態模式（站內切換）：回到最上面
+    if (storiesOnly && !wasStoriesOnly) window.scrollTo(0, 0);
+    wasStoriesOnly = storiesOnly;
     // 記錄目前被藏頁面上的連結；換到不同頁面就重新開始記
     const blockedPage = explore ? "explore" : storiesOnly ? "home" : null;
     if (blockedPage !== trackedPage) {

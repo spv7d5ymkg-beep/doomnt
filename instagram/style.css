@@ -282,6 +282,25 @@ html.igc-post-overlay main:not([data-igc-feed]) > div > :first-child {
   background: rgb(var(--ig-primary-background, 255, 255, 255));
 }
 /* 點下去馬上出現的遮罩（貼文頁載入前也看得到），貼文頁的 <main> 疊在它上面 */
+/* 貼文還沒載入好：只顯示遮罩和載入動畫（content.js 的 updateOverlay） */
+html.igc-post-loading main:not([data-igc-feed]) {
+  visibility: hidden !important;
+}
+#igc-post-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+/* 關閉中：視窗馬上消失，不等 Instagram 換回上一頁 */
+html.igc-post-closing main:not([data-igc-feed]),
+html.igc-post-closing #igc-post-shade,
+html.igc-post-closing #igc-post-close {
+  display: none !important;
+}
 #igc-post-shade {
   position: fixed;
   inset: 0;
