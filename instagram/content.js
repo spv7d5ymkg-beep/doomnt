@@ -506,6 +506,10 @@
       }
     });
     document.body.appendChild(grid);
+    gridShownAt = Date.now();
+    gridReady = false;
+    gridDecoding = false;
+    setClass(document.documentElement, "igc-grid-ready", false);
     grid.focus({ preventScroll: true });
     return grid;
   }
@@ -692,6 +696,30 @@
     setText(next, lastPage ? t("noMorePosts") : t("next"));
   }
 
+  // 格狀版面第一頁載滿、圖片都載入好之前不顯示（只看到載入動畫），好了才一次出現；最多等 GRID_WAIT_MAX
+  const GRID_WAIT_MAX = 8000;
+  let gridShownAt = 0;
+  let gridReady = false;
+  let gridDecoding = false;
+  function markGridReady() {
+    gridReady = true;
+    setClass(document.documentElement, "igc-grid-ready", true);
+    updateLoader();
+  }
+  function updateGridReady() {
+    if (gridReady) return;
+    const box = document.getElementById("igc-grid-tiles");
+    if (!box) return;
+    if (Date.now() - gridShownAt > GRID_WAIT_MAX) return markGridReady();
+    if (gridDecoding) return;
+    const tiles = [...box.querySelectorAll(".igc-tile")];
+    if (tiles.length < PAGE_SIZE && !feedEnded()) return;
+    const imgs = tiles.map((tile) => tile.querySelector("img"));
+    if (imgs.some((im) => !im)) return; // 還有格子在等圖片（fillMissingImages）
+    gridDecoding = true;
+    Promise.race([Promise.all(imgs.map((im) => im.decode().catch(() => {}))), sleep(IMG_WAIT_MAX)]).then(markGridReady);
+  }
+
   function showGrid() {
     if (!busy) stopLoading = false; // 離開格狀版面時設的停止旗標：回來後清掉
     if (feedHref !== location.href) {
@@ -709,6 +737,7 @@
     pauseHiddenVideos();
     collect();
     renderGrid();
+    updateGridReady();
     if (busy) return;
     // 本頁有還沒有圖片的格子：先補圖片
     const items = posts.slice(feedPage * PAGE_SIZE, (feedPage + 1) * PAGE_SIZE);
@@ -926,6 +955,9 @@
         if (want && stories.size >= want) break;
         still = sc.scrollWidth === lastWidth ? still + 1 : 0;
         lastWidth = sc.scrollWidth;
+        // 沒有 HTML 裡的名單（站內換頁）：人數和捲動區寬度對得上，確認一次沒有再變長就結束
+        const byWidth = expectedFromWidth(tray, sc);
+        if (still >= 1 && byWidth && stories.size >= byWidth - 1) break;
         if (still > 3) break;
         await sleep(300);
         continue;
@@ -965,6 +997,7 @@
     if (!box) {
       box = document.createElement("div");
       box.id = "igc-stories";
+      storySig = ""; // 新的容器（Instagram 換了 <main>）：一定要重畫
       box.addEventListener("click", (e) => {
         const b = e.target.closest(".igc-story");
         if (b) openStory(b.dataset.name);
@@ -1010,9 +1043,8 @@
     setClass(document.documentElement, "igc-stories-ready", true);
     document.getElementById("igc-loader")?.remove();
   }
-  // 計時從「第一次進到首頁限時動態模式」開始算（不是從腳本載入：先在別頁待了一陣子再回首頁，
-  // 會一回來就時間到，還沒畫好的空白頁面直接露出來）
-  let storyWaitTimer = 0;
+  // 計時從「這次進到首頁限時動態模式」開始算
+  let storyEnteredAt = 0;
   // 點頭像：不按原本那一列的按鈕（那樣打開的播放器兩側會有其他帳號，看完會接著播下一個人），
   // 而是直接把網址換成 /stories/帳號/，讓 Instagram 自己的路由打開播放器：
   // 這樣只會播這個人的限時動態，兩側沒有其他帳號，看完自動關閉、回到首頁（和從個人頁點大頭貼一樣）。
@@ -1023,11 +1055,47 @@
     history.pushState(null, "", "/stories/" + encodeURIComponent(name) + "/");
     window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
   }
+  // 自動修復：站內換頁回到首頁（按上一頁、點 Instagram 標誌…）時，Instagram 有時會顯示空的首頁
+  // （有內容，但沒有限時動態列也沒有貼文）。這個狀態持續 EMPTY_HOME_MS 就整頁重新載入一次
+  // （這段期間頁面是藏著的，只看到載入動畫）。EMPTY_HOME_GAP 內不重複，免得真的沒有任何動態的帳號一直重新載入
+  const EMPTY_HOME_MS = 3000;
+  const EMPTY_HOME_GAP = 60000;
+  const EMPTY_HOME_KEY = "igcEmptyHomeReload";
+  let emptyHomeSince = 0;
+  function healEmptyHome() {
+    const main = document.querySelector("main");
+    const empty = main && main.querySelector("img") && !main.querySelector("li canvas, article");
+    if (!empty) {
+      emptyHomeSince = 0;
+      return;
+    }
+    const now = Date.now();
+    if (!emptyHomeSince) emptyHomeSince = now;
+    if (now - emptyHomeSince < EMPTY_HOME_MS) return;
+    emptyHomeSince = 0;
+    try {
+      if (now - Number(sessionStorage.getItem(EMPTY_HOME_KEY) || 0) < EMPTY_HOME_GAP) return;
+      sessionStorage.setItem(EMPTY_HOME_KEY, String(now));
+    } catch {
+      return;
+    }
+    location.reload();
+  }
   function updateStories(p, storiesOnly) {
     const back = storyPrevPath !== null && storyPrevPath !== "/" && p === "/";
     storyPrevPath = p;
-    if (!storiesOnly) return;
-    if (!storyWaitTimer) storyWaitTimer = setTimeout(markStoriesReady, STORIES_WAIT_MAX);
+    if (!storiesOnly) {
+      storyEnteredAt = 0;
+      return;
+    }
+    // 每次進到限時動態模式（包含從別頁回來、Instagram 換了新的 <main>）：
+    // 頭像還沒畫出來就整頁藏著、顯示載入動畫，畫好才一次出現；最多等 STORIES_WAIT_MAX
+    if (!storyEnteredAt) storyEnteredAt = Date.now();
+    healEmptyHome();
+    if (!document.querySelector("#igc-stories .igc-story")) {
+      if (Date.now() - storyEnteredAt < STORIES_WAIT_MAX) setClass(document.documentElement, "igc-stories-ready", false);
+      else markStoriesReady();
+    }
     const tray = findTray();
     if (!tray) return;
     tray.setAttribute("data-igc-tray", "");
@@ -1121,8 +1189,10 @@
     if (label) label.setAttribute("data-igc-nav-label", "");
     return item;
   }
-  // 點這兩項：不重新載入整頁（要 3～6 秒），直接換網址讓 Instagram 自己的路由切換（約 1 秒），
-  // 已經掃過的限時動態、載入過的格狀版面都還在，切回來馬上就有。
+  // 點「貼文」：不重新載入整頁（要 3～6 秒），直接換網址讓 Instagram 自己的路由切換（約 1 秒），
+  // 載入過的格狀版面還在，馬上就有。
+  // 點「限時動態」：照一般連結整頁載入。站內切換到 / 不可靠：Instagram 有時會顯示一個空的首頁
+  // （「追蹤帳號就能在這裡看到最新動態」加上一排推薦帳號），沒有限時動態也沒有貼文。
   // 按著 ⌘／Ctrl／Shift 或用中鍵點的照一般連結處理（開新分頁）
   document.addEventListener(
     "click",
@@ -1137,6 +1207,10 @@
         const grid = document.getElementById("igc-grid");
         if (grid) grid.scrollTop = 0;
         else window.scrollTo(0, 0);
+        return;
+      }
+      if (a.closest("[data-igc-nav]").getAttribute("data-igc-nav") !== "posts") {
+        location.assign(href);
         return;
       }
       history.pushState(null, "", href);
@@ -1218,7 +1292,9 @@
     '<rect class="igc-loader-line" x="12" y="47" width="76" height="6" rx="3" fill="#FF4F1A"/></svg>';
   function updateLoader() {
     const root = document.documentElement;
-    const waiting = root.classList.contains("igc-stories-only") && !root.classList.contains("igc-stories-ready");
+    const waiting =
+      (root.classList.contains("igc-stories-only") && !root.classList.contains("igc-stories-ready")) ||
+      (root.classList.contains("igc-grid") && !root.classList.contains("igc-grid-ready"));
     let el = document.getElementById("igc-loader");
     if (!waiting) {
       if (el) el.remove();

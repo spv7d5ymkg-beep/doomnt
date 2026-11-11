@@ -136,6 +136,10 @@ html.__fb-dark-mode #igc-pager button:hover:not(:disabled) {
 html.igc-grid {
   overflow: hidden !important;
 }
+/* 第一頁載滿、圖片載入好之前不顯示格狀版面（content.js 的 updateGridReady），只看到載入動畫 */
+html.igc-grid:not(.igc-grid-ready) #igc-grid {
+  visibility: hidden !important;
+}
 html.igc-grid main {
   visibility: hidden !important;
 }

@@ -9,6 +9,10 @@ Instagram 改版後可能失效；發現不一樣就更新這份文件。
   然後整個被**新的 `<main>` 元素**取代（不是重用）。標在舊 `<main>` 上的屬性會跟著消失。
 - 自己觸發換頁：`history.pushState(null, "", path)` + `dispatchEvent(new PopStateEvent("popstate"))`。
   已確認可用：`/`、`/?variant=following`、`/p/ID/`、`/stories/帳號/`、`/explore/`、`/direct/inbox/`。
+- **站內切換到 `/`（首頁）不可靠**：從 `/?variant=following` 用 pushState 回 `/`，Instagram 有時會顯示空的首頁
+  （「Get fresh updates here when you follow accounts」+ 推薦帳號），沒有限時動態列也沒有貼文，而且同一份文件裡會一直這樣。
+  所以「限時動態」按鈕用整頁載入；其他路徑回到首頁遇到這個狀態時由 `healEmptyHome()` 重新載入。
+  切換到 `/?variant=following` 則每次都正常。
 - 換頁時 Instagram 會佔住主執行緒 0.3～1 秒（畫面凍結）。要讓使用者馬上看到反應，
   先改畫面，等瀏覽器畫完一格（`requestAnimationFrame` → `setTimeout 0`）再換網址。
 - 換頁的資料來自 `/ajax/navigation/`，第一次 0.5～2 秒，同一頁第二次約 0.3 秒（有快取）。
