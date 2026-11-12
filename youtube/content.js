@@ -5,6 +5,11 @@
     if (el.textContent !== s) el.textContent = s;
   };
 
+  // 只在真的有變時才改 class：classList.toggle 就算沒變也會產生一筆屬性變動
+  const setClass = (el, name, on) => {
+    if (el.classList.contains(name) !== on) el.classList.toggle(name, on);
+  };
+
   // ---------- 首頁空白處的圖片：每次載入頁面隨機一張 ----------
   // style.css 用 --ytc-home-img 當首頁的背景圖；英文介面用 images/en/ 裡的英文版
   const POSTERS = ["poster-1.png", "poster-2.png", "poster-3.png", "poster-4.png", "poster-5.png", "poster-6.png", "poster-7.png", "poster-8.png"];
@@ -72,7 +77,7 @@
 
   function hideGuideExplore() {
     for (const sec of document.querySelectorAll("ytd-guide-section-renderer")) {
-      sec.classList.toggle("ytc-hidden", isExploreSection(sec));
+      setClass(sec, "ytc-hidden", isExploreSection(sec));
     }
   }
 
@@ -120,7 +125,7 @@
       textStale = repeated >= Math.min(2, texts.length);
     }
     const stale = (ids.size > 0 && !ids.has(vid)) || textStale;
-    comments.classList.toggle("ytc-stale-comments", stale);
+    setClass(comments, "ytc-stale-comments", stale);
     if (!stale) {
       staleSince = 0;
       if (texts.length) lastComments = { vid, texts };
@@ -245,11 +250,11 @@
       const tag = el.tagName;
       if (tag === "YTD-RICH-ITEM-RENDERER") {
         if (isShortsItem(el)) continue;
-        el.classList.toggle("ytc-off-page", rank < start || rank >= end);
+        setClass(el, "ytc-off-page", rank < start || rank >= end);
         rank++;
         videos.push(el);
       } else if (tag === "YTD-RICH-SECTION-RENDERER") {
-        el.classList.toggle("ytc-off-page", subsPage > 0);
+        setClass(el, "ytc-off-page", subsPage > 0);
       }
     }
     // 今天和更早的影片之間畫一條紅線：標在線下第一支影片上，線上那支影片拿掉底線
@@ -261,13 +266,13 @@
       if (el !== firstEarlier) el.classList.remove("ytc-first-earlier");
     }
     if (firstEarlier) {
-      lastToday.classList.add("ytc-last-today");
-      firstEarlier.classList.add("ytc-first-earlier");
+      setClass(lastToday, "ytc-last-today", true);
+      setClass(firstEarlier, "ytc-first-earlier", true);
     }
     const pageFull = rank >= end;
     // 這一頁滿了就藏起「載入更多」，還沒滿就讓它出現、繼續載入
     const more = contents.querySelector(":scope > ytd-continuation-item-renderer");
-    if (more) more.classList.toggle("ytc-off-page", pageFull);
+    if (more) setClass(more, "ytc-off-page", pageFull);
 
     let pager = browse.querySelector("#ytc-pager");
     if (!pager) {
@@ -409,10 +414,7 @@
     }
     hideGuideExplore();
     const root = document.documentElement;
-    root.classList.toggle(
-      "ytc-playlist",
-      p === "/watch" && new URLSearchParams(location.search).has("list")
-    );
+    setClass(root, "ytc-playlist", p === "/watch" && new URLSearchParams(location.search).has("list"));
     if (p === "/watch") {
       disableAutoplay();
       refitPlayer();
