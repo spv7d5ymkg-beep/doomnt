@@ -1450,6 +1450,22 @@
     }
   }
 
+  // ---------- 貼文對話框：拿掉左右兩邊的「上一篇／下一篇」箭頭 ----------
+  // 從個人頁（或探索、標註）點開貼文時，對話框左右兩邊各有一個箭頭，可以一篇接一篇往下看。
+  // 這兩個按鈕在對話框裡、但不在貼文（<article>）裡，本身沒有 aria-label（裡面的圖示才有），貼在畫面左右邊緣；
+  // 貼文裡切換多張相片的箭頭在 <article> 裡、按鈕自己有 aria-label，不會被選到。
+  // 用位置和結構找，不靠文字，介面是哪種語言都一樣。標上 data-igc-postnav，由 style.css 藏起來
+  function hidePostNav() {
+    for (const b of document.querySelectorAll('[role="dialog"] button:not([aria-label]):not([data-igc-postnav])')) {
+      if (b.closest("article") || !b.querySelector("svg") || b.textContent.trim()) continue;
+      const r = b.getBoundingClientRect();
+      if (!r.width || r.width > 60) continue;
+      const edge = r.right < 80 || r.left > window.innerWidth - 80;
+      const middle = Math.abs(r.top + r.height / 2 - window.innerHeight / 2) < window.innerHeight * 0.2;
+      if (edge && middle) b.setAttribute("data-igc-postnav", "");
+    }
+  }
+
   // ---------- 主檢查 ----------
   // ---------- 對話框裡的直式影片放大 ----------
   // Instagram 的貼文對話框把影片放在 4:5 的框裡（padding-bottom 撐出比例的那層），
@@ -1540,6 +1556,7 @@
     if (POST_PAGE_RE.test(p)) hideMorePosts();
     if (p === "/") markSuggest();
     markDm();
+    hidePostNav();
     fitDialogVideos();
     const variant = new URLSearchParams(location.search).get("variant");
     // 首頁預設 = 只有限時動態；?variant=following（或 past_posts）= 貼文模式

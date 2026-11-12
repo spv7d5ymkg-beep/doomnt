@@ -426,3 +426,11 @@ html.igc-stories-only #igc-stories {
   color: rgb(var(--ig-secondary-text, 115, 115, 115));
   font-size: 13px;
 }
+
+/* 貼文對話框左右兩邊的「上一篇／下一篇」箭頭（content.js 的 hidePostNav）。
+   ._aaqf／._aaqg 是 Instagram 目前包著這兩個按鈕的元素，讓它們一出現就藏起來，不會先閃一下 */
+[data-igc-postnav],
+[role="dialog"] ._aaqf,
+[role="dialog"] ._aaqg {
+  display: none !important;
+}
