@@ -137,6 +137,38 @@
     return null;
   }
 
+  // 站內切換到「貼文」模式時，網址先變，上一頁的 <main> 還會留在頁面上約 1 秒。
+  // 上一頁如果是預設首頁（演算法動態），裡面有沒追蹤帳號的推薦貼文，不能記進格狀版面（也會被存進快取）。
+  // 兩道防線：切換那一刻頁面上的貼文全部標成舊的；貼文上有「追蹤」按鈕的（＝沒追蹤的帳號）一律不收
+  // 實測：/ → /?variant=following 時 <main> 是同一個元素，舊的動態會多留約 4 秒，
+  // 這段期間往下捲還會繼續冒出新的舊動態貼文（和原本的貼文在同一個容器裡）；之後整個動態容器才被換成新的。
+  // 所以連舊貼文的容器（往上兩層）一起記下來，容器裡後來才出現的貼文也算舊的
+  let staleArticles = new WeakSet();
+  let staleBoxes = new WeakSet();
+  function markStaleArticles() {
+    for (const a of document.querySelectorAll("main article")) {
+      staleArticles.add(a);
+      const box = a.parentElement;
+      if (box && box.tagName !== "MAIN") {
+        staleBoxes.add(box);
+        if (box.parentElement && box.parentElement.tagName !== "MAIN") staleBoxes.add(box.parentElement);
+      }
+    }
+  }
+  function isStaleArticle(a) {
+    const box = a.parentElement;
+    return staleArticles.has(a) || (!!box && (staleBoxes.has(box) || (!!box.parentElement && staleBoxes.has(box.parentElement))));
+  }
+  const FOLLOW_BTN_RE = /^(Follow|追蹤)$/;
+  function notFollowed(article) {
+    const w = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = w.nextNode())) {
+      if (FOLLOW_BTN_RE.test(n.nodeValue.trim()) && n.parentElement.closest('[role="button"], button')) return true;
+    }
+    return false;
+  }
+
   // 把背景動態裡目前在頁面上的貼文記下來（之前看過的就更新資料）
   function collect() {
     let added = false;
@@ -144,7 +176,9 @@
       const id = postId(a);
       if (!id) continue;
       let p = postById.get(id);
-      if (a.classList.contains("igc-hidden")) {
+      // 切到「貼文」模式那一刻還留在頁面上的舊貼文（上一頁的，可能是演算法推薦的首頁動態）：不算
+      if (isStaleArticle(a)) continue;
+      if (a.classList.contains("igc-hidden") || notFollowed(a)) {
         // 內容載入後才認出是廣告：拿掉，後面的往前遞補
         if (p) {
           posts = posts.filter((x) => x !== p);
@@ -192,7 +226,9 @@
   // 下次打開時先用快取馬上畫出格狀版面，背景照常載入，新貼文依時間插進最前面、舊資料被新的覆蓋。
   // 圖片網址幾天內有效，瀏覽器也已經快取過同一個網址的圖片，所以圖片也是馬上出現；
   // 網址過期載入失敗的格子，改成重新到動態裡找圖片（見 ensureGrid 的 error 監聽）。
-  const CACHE_KEY = "igGridCache";
+  // （鍵值換過：舊的 igGridCache 裡混進了演算法推薦的貼文，整個丟掉）
+  const CACHE_KEY = "igGridCache2";
+  chrome.storage.local.remove("igGridCache");
   const CACHE_MAX_AGE = 3 * 24 * 3600 * 1000;
   const CACHE_POSTS = 72;
   let gridCache = null; // 讀進來的快取貼文（還沒放進 posts 的）
@@ -245,6 +281,12 @@
     busy = true;
     try {
       for (let i = 0; i < 250 && haveCount() < n && !stopLoading && gridActive(); i++) {
+        // 頁面上還是上一頁留下來的舊動態：等 Instagram 換上新的，不要捲（捲了只會讓舊動態載入更多）
+        const arts = [...document.querySelectorAll("main article")];
+        if (arts.length && arts.every(isStaleArticle)) {
+          await sleep(150);
+          continue;
+        }
         collect();
         if (haveCount() >= n || feedEnded()) break;
         window.scrollBy(0, Math.round(window.innerHeight * 0.8));
@@ -1460,6 +1502,8 @@
   );
 
   let wasStoriesOnly = false;
+  let wasPostsMode = false;
+  let wasOverGrid = false;
   function check() {
     const p = location.pathname;
     if (REELS_BLOCK_RE.test(p)) {
@@ -1535,9 +1579,13 @@
     // 先標記首頁貼文區塊，按鈕才能用它判斷首頁是否已載入
     if (storiesOnly) markHomePosts();
     else if (postsMode) {
+      // 剛切進「貼文」模式（不是關掉貼文浮動視窗回來）：這一刻頁面上的貼文是上一頁留下來的
+      if (!wasPostsMode && !wasOverGrid) markStaleArticles();
       filterFeed();
       showGrid();
     }
+    wasPostsMode = postsMode;
+    wasOverGrid = !!overGrid || overlayPending;
     updateNav(p, storiesOnly);
     updateStories(p, storiesOnly);
     updateLoader();
