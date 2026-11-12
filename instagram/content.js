@@ -871,12 +871,14 @@
       return null;
     }
   }
+  const USERNAME_RE = /^[A-Za-z0-9._]+$/; // Instagram 帳號只會有英數字、句點、底線
   function readTray(tray, sc) {
     const base = sc.getBoundingClientRect().left - sc.scrollLeft;
     for (const li of tray.querySelectorAll("li")) {
       const btn = li.querySelector('[role="button"]');
       const name = li.textContent.trim();
-      if (!btn || !name) continue;
+      // 自己的那一格顯示的是「你的限時動態」（不是帳號），點了會開到不存在的頁面：不列出來
+      if (!btn || !USERNAME_RE.test(name)) continue;
       const img = li.querySelector("img");
       const canvas = li.querySelector("canvas");
       const old = stories.get(name);
@@ -1130,7 +1132,7 @@
     if (rescanCount >= RESCAN_MAX) return;
     const unknown = [...tray.querySelectorAll("li")].some((li) => {
       const name = li.textContent.trim();
-      return name && li.querySelector('[role="button"]') && !stories.has(name);
+      return USERNAME_RE.test(name) && li.querySelector('[role="button"]') && !stories.has(name);
     });
     const sc = trayScroller(tray);
     const short = sc && expectedFromWidth(tray, sc) > stories.size + 1;
