@@ -24,6 +24,9 @@ Instagram 改版後可能失效；發現不一樣就更新這份文件。
 - `/stories/帳號/` 直接用網址載入會出現「以某某身分觀看？」；用 pushState 開則是單人播放器，看完自動關閉。
 - `#splash-screen`：初始 HTML 裡的全螢幕載入畫面（z-index 100）。
 
+- **分頁在背景時**（切到別的分頁）Chrome 暫停畫面更新、放慢計時器，Instagram 不會把捲到的內容畫出來。
+  背景捲動讀到的資料是不完整的 → 掃描、載入都用 `whenVisible()` 等回到前景；等待上限的計時不算背景時間。
+
 ## 2. 首頁
 
 - `<main>` 是直向 flex、`justify-content: center`（內容少會被推到中間）。

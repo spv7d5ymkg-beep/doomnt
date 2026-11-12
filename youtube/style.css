@@ -759,3 +759,17 @@ html[dark] #ytc-pager button[data-go="1"] {
 html[dark] #ytc-pager button[data-go="1"]:hover:not(:disabled) {
   background: #d9d9d9;
 }
+
+/* ========== 頂端列：不透明 ========== */
+/* YouTube 的頂端列是半透明加模糊（backdrop-filter），下面的內容會透上來；
+   捲得快時模糊跟不上，頂端列和頁面內容會混在一起一瞬間。改成不透明的底色、不做模糊 */
+ytd-masthead #background,
+#frosted-glass {
+  background: var(--yt-sys-color-baseline--base-background, #fff) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html[dark] ytd-masthead #background,
+html[dark] #frosted-glass {
+  background: var(--yt-sys-color-baseline--base-background, #0f0f0f) !important;
+}

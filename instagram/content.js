@@ -87,6 +87,20 @@
   let overlayPost = null; // 用貼文頁做成的浮動視窗目前顯示的貼文（見 openOverlay）
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // 分頁在背景時（切到別的分頁、視窗最小化），Chrome 會暫停畫面更新、把計時器放慢，
+  // Instagram 也就不會把捲到的限時動態、貼文畫出來。這時在背景捲動只會讀到不完整的資料。
+  // 所以背景的掃描、載入都先停住，等分頁回到前景再繼續；「最多等幾秒就直接顯示」的計時也不算背景的時間
+  const whenVisible = () =>
+    document.hidden
+      ? new Promise((r) => {
+          const on = () => {
+            if (document.hidden) return;
+            document.removeEventListener("visibilitychange", on);
+            r();
+          };
+          document.addEventListener("visibilitychange", on);
+        })
+      : Promise.resolve();
 
   function postId(article) {
     const a = article.querySelector('a[href*="/p/"], a[href*="/reel/"]');
@@ -281,6 +295,7 @@
     busy = true;
     try {
       for (let i = 0; i < 250 && haveCount() < n && !stopLoading && gridActive(); i++) {
+        await whenVisible();
         // 頁面上還是上一頁留下來的舊動態：等 Instagram 換上新的，不要捲（捲了只會讓舊動態載入更多）
         const arts = [...document.querySelectorAll("main article")];
         if (arts.length && arts.every(isStaleArticle)) {
@@ -767,6 +782,7 @@
     if (gridReady) return;
     const box = document.getElementById("igc-grid-tiles");
     if (!box) return;
+    if (document.hidden) gridShownAt = Date.now(); // 在背景的時間不算
     if (Date.now() - gridShownAt > GRID_WAIT_MAX) return markGridReady();
     if (gridDecoding) return;
     const tiles = [...box.querySelectorAll(".igc-tile")];
@@ -989,6 +1005,7 @@
   }
   // 把整列從頭捲到尾讀一次。回傳捲動區（找不到 → null）
   async function scanOnce(tray) {
+    await whenVisible();
     // 頁面剛載入時捲動區可能還沒排版好（沒有橫向溢出）。先等它一下，
     // 不然只會讀到畫面上那十幾個（之前就是這樣只出現前 13 個人）
     let sc = trayScroller(tray);
@@ -1008,6 +1025,11 @@
     let lastWidth = 0;
     let still = 0;
     for (let i = 0; i < 200 && !storyStop && tray === storyTray && tray.isConnected; i++) {
+      if (document.hidden) {
+        // 回到前景後，剛才那一段可能沒畫出來：停一下再讀
+        await whenVisible();
+        await sleep(300);
+      }
       readTray(tray, sc);
       if (sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 2) {
         // 到底了：人數已經和 HTML 裡的資料一樣就結束；否則等一下看 Instagram 會不會再載入更多
@@ -1149,7 +1171,7 @@
     }
     // 每次進到限時動態模式（包含從別頁回來、Instagram 換了新的 <main>）：
     // 頭像還沒畫出來就整頁藏著、顯示載入動畫，畫好才一次出現；最多等 STORIES_WAIT_MAX
-    if (!storyEnteredAt) storyEnteredAt = Date.now();
+    if (!storyEnteredAt || document.hidden) storyEnteredAt = Date.now(); // 在背景的時間不算
     healEmptyHome();
     if (!document.querySelector("#igc-stories .igc-story")) {
       if (Date.now() - storyEnteredAt < STORIES_WAIT_MAX) setClass(document.documentElement, "igc-stories-ready", false);
