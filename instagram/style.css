@@ -305,6 +305,10 @@ html.igc-post-closing #igc-post-shade,
 html.igc-post-closing #igc-post-close {
   display: none !important;
 }
+/* 浮動視窗開著時 Instagram 跳出來的對話框（分享等）：提到遮罩、視窗和關閉鈕上面 */
+html.igc-post-overlay .igc-dialog-top {
+  z-index: 30 !important;
+}
 #igc-post-shade {
   position: fixed;
   inset: 0;

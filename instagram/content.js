@@ -381,6 +381,8 @@
     setClass(document.documentElement, "igc-post-closing", true);
     afterPaint(() => history.back());
   }
+  // Instagram 自己的對話框（不在貼文頁的 <main> 裡）
+  const igDialogs = () => [...document.querySelectorAll('[role="dialog"]')].filter((d) => !d.closest("main"));
   function updateOverlay(on) {
     const root = document.documentElement;
     if (!on || (overlayClosing && Date.now() - overlayClosing > 3000)) {
@@ -394,6 +396,18 @@
       loading = (!card || card.getBoundingClientRect().height < 100) && Date.now() - overlayShownAt < OVERLAY_LOAD_MAX;
     }
     setClass(root, "igc-post-loading", loading);
+    // 浮動視窗開著時 Instagram 自己跳出來的對話框（分享、更多選項、按讚的人…）：它在另一個 z-index: 0 的區塊裡，
+    // 會被我們的遮罩和視窗蓋住。把它外面每一層有 z-index 的祖先都提到最上面（style.css 的 .igc-dialog-top）
+    if (on) {
+      const postMain = document.querySelector("main:not([data-igc-feed])");
+      for (const d of igDialogs()) {
+        for (let up = d; up && up !== document.body; up = up.parentElement) {
+          // 連貼文頁也包在裡面的外層不動（那幾層已經不建立堆疊，見上面的 igc-unstack-post）
+          if (postMain && up.contains(postMain)) break;
+          if (!up.classList.contains("igc-dialog-top") && getComputedStyle(up).zIndex !== "auto") up.classList.add("igc-dialog-top");
+        }
+      }
+    }
     let spin = document.getElementById("igc-post-loader");
     if (loading && !spin && document.body) {
       spin = document.createElement("div");
@@ -448,7 +462,8 @@
   window.addEventListener(
     "keydown",
     (e) => {
-      if ((overlayOn() || overlayPending) && e.key === "Escape") {
+      // Instagram 的對話框開著時，Esc 先關它（交給 Instagram 處理），不關整個浮動視窗
+      if ((overlayOn() || overlayPending) && e.key === "Escape" && !igDialogs().length) {
         e.stopPropagation();
         closeOverlay();
       }
