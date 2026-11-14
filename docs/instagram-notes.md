@@ -15,7 +15,8 @@ Instagram 改版後可能失效；發現不一樣就更新這份文件。
   切換到 `/?variant=following` 則每次都正常。
 - **`/` → `/?variant=following` 時 `<main>` 是同一個元素**（不會換新的），舊的演算法動態會多留約 4 秒，
   期間往下捲還會繼續載入舊動態的貼文；之後裡面的動態容器才整個換成追蹤中動態。
-  這段期間讀到的 `<article>` 不是追蹤中動態的（`staleArticles`／`staleBoxes`、`notFollowed()`）。
+  換的只有 `<article>` 本身，外層容器是沿用的（不能用容器分辨新舊）。
+  切換時記下當下的貼文，其中還有任何一篇在頁面上就代表還沒換（`feedSwapping()`），這段期間不收也不捲。
 - 換頁時 Instagram 會佔住主執行緒 0.3～1 秒（畫面凍結）。要讓使用者馬上看到反應，
   先改畫面，等瀏覽器畫完一格（`requestAnimationFrame` → `setTimeout 0`）再換網址。
 - 換頁的資料來自 `/ajax/navigation/`，第一次 0.5～2 秒，同一頁第二次約 0.3 秒（有快取）。

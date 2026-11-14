@@ -154,24 +154,27 @@
   // 站內切換到「貼文」模式時，網址先變，上一頁的 <main> 還會留在頁面上約 1 秒。
   // 上一頁如果是預設首頁（演算法動態），裡面有沒追蹤帳號的推薦貼文，不能記進格狀版面（也會被存進快取）。
   // 兩道防線：切換那一刻頁面上的貼文全部標成舊的；貼文上有「追蹤」按鈕的（＝沒追蹤的帳號）一律不收
-  // 實測：/ → /?variant=following 時 <main> 是同一個元素，舊的動態會多留約 4 秒，
-  // 這段期間往下捲還會繼續冒出新的舊動態貼文（和原本的貼文在同一個容器裡）；之後整個動態容器才被換成新的。
-  // 所以連舊貼文的容器（往上兩層）一起記下來，容器裡後來才出現的貼文也算舊的
-  let staleArticles = new WeakSet();
-  let staleBoxes = new WeakSet();
+  // 實測：/ → /?variant=following 時 <main> 是同一個元素，舊的動態會多留約 3～4 秒，
+  // 這段期間還會繼續冒出舊動態的貼文；之後 Instagram 一次把所有舊貼文換成追蹤中動態的貼文。
+  // 外層的容器是沿用的（不能用容器分辨新舊：那樣新動態的貼文也會全部被當成舊的，永遠載入不到新貼文）。
+  // 所以：切換那一刻記下頁面上的貼文，只要其中還有任何一篇在頁面上，就代表還沒換，
+  // 這段期間什麼都不收、也不捲動（期間新冒出來的也一起記下）；全部消失 = 已經換成新動態，恢復正常。
+  // 萬一 Instagram 沒有換掉它們（例如直接沿用同一份動態），最多等 FEED_SWAP_MAX
+  const FEED_SWAP_MAX = 8000;
+  let staleSnapshot = [];
+  let feedStaleAt = 0;
   function markStaleArticles() {
-    for (const a of document.querySelectorAll("main article")) {
-      staleArticles.add(a);
-      const box = a.parentElement;
-      if (box && box.tagName !== "MAIN") {
-        staleBoxes.add(box);
-        if (box.parentElement && box.parentElement.tagName !== "MAIN") staleBoxes.add(box.parentElement);
-      }
-    }
+    staleSnapshot = [...document.querySelectorAll("main article")];
+    feedStaleAt = Date.now();
   }
-  function isStaleArticle(a) {
-    const box = a.parentElement;
-    return staleArticles.has(a) || (!!box && (staleBoxes.has(box) || (!!box.parentElement && staleBoxes.has(box.parentElement))));
+  function feedSwapping() {
+    if (!staleSnapshot.length) return false;
+    if (Date.now() - feedStaleAt > FEED_SWAP_MAX || !staleSnapshot.some((a) => a.isConnected)) {
+      staleSnapshot = [];
+      return false;
+    }
+    for (const a of document.querySelectorAll("main article")) if (!staleSnapshot.includes(a)) staleSnapshot.push(a);
+    return true;
   }
   const FOLLOW_BTN_RE = /^(Follow|追蹤)$/;
   function notFollowed(article) {
@@ -185,13 +188,12 @@
 
   // 把背景動態裡目前在頁面上的貼文記下來（之前看過的就更新資料）
   function collect() {
+    if (feedSwapping()) return; // 頁面上還是上一頁的舊動態
     let added = false;
     for (const a of document.querySelectorAll("main article")) {
       const id = postId(a);
       if (!id) continue;
       let p = postById.get(id);
-      // 切到「貼文」模式那一刻還留在頁面上的舊貼文（上一頁的，可能是演算法推薦的首頁動態）：不算
-      if (isStaleArticle(a)) continue;
       if (a.classList.contains("igc-hidden") || notFollowed(a)) {
         // 內容載入後才認出是廣告：拿掉，後面的往前遞補
         if (p) {
@@ -297,8 +299,7 @@
       for (let i = 0; i < 250 && haveCount() < n && !stopLoading && gridActive(); i++) {
         await whenVisible();
         // 頁面上還是上一頁留下來的舊動態：等 Instagram 換上新的，不要捲（捲了只會讓舊動態載入更多）
-        const arts = [...document.querySelectorAll("main article")];
-        if (arts.length && arts.every(isStaleArticle)) {
+        if (feedSwapping()) {
           await sleep(150);
           continue;
         }
