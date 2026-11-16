@@ -114,3 +114,97 @@ select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* 使用統計 */
+.stats {
+  margin-bottom: 16px;
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.stat-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.stat-total-time {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+.stat-delta {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+/* 比昨天少 = 好事（綠）；比昨天多 = 橘紅 */
+.stat-delta.down {
+  color: #5fc98a;
+}
+.stat-delta.up {
+  color: var(--accent);
+}
+.stat-sites {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 6px 12px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.stat-sites .site {
+  font-weight: 600;
+}
+.stat-sites .time {
+  text-align: right;
+}
+.stat-sites .opens {
+  text-align: right;
+  color: var(--muted);
+}
+.stat-sites .unused {
+  color: var(--muted);
+}
+.stat-week-label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.stat-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  align-items: end;
+}
+.stat-week .day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.stat-week .track {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 44px;
+}
+.stat-week .bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 3px 3px 1px 1px;
+  background: #4a4a4a;
+}
+.stat-week .day.today .bar {
+  background: var(--accent);
+}
+.stat-week .day.today {
+  color: var(--text);
+}

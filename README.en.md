@@ -39,6 +39,12 @@ A Chrome extension that stops endless scrolling on YouTube and Instagram, and bl
 - Popular threads on the home page always show SFW content only, with the toggle removed
 - Click the Doomn't icon in the toolbar to turn the 4chan filter on or off (on by default)
 
+## Usage stats
+
+- Click the Doomn't icon in the toolbar: the top shows how long you spent on YouTube, Instagram and 4chan today, how many times you opened each, whether that is more or less than yesterday, and a bar chart of the last 7 days
+- Time only counts while the tab is in front and the window is focused; coming back after more than 30 seconds counts as a new open
+- The data stays on your computer, is never sent anywhere, and only the last 8 days are kept
+
 ## Language
 
 - The interface is available in English and Traditional Chinese: click the Doomn't icon in the toolbar and pick one from the "Language" menu; open tabs switch right away

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "2.38.1",
+  "version": "2.39.0",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
   "permissions": [
@@ -32,7 +32,8 @@
       ],
       "js": [
         "common/i18n.js",
-        "youtube/content.js"
+        "youtube/content.js",
+        "common/usage.js"
       ],
       "run_at": "document_start"
     },
@@ -45,7 +46,8 @@
       ],
       "js": [
         "common/i18n.js",
-        "instagram/content.js"
+        "instagram/content.js",
+        "common/usage.js"
       ],
       "run_at": "document_start"
     },
@@ -59,7 +61,8 @@
         "fourchan/style.css"
       ],
       "js": [
-        "fourchan/content.js"
+        "fourchan/content.js",
+        "common/usage.js"
       ],
       "run_at": "document_start"
     }
