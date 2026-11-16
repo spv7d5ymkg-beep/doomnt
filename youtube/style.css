@@ -256,8 +256,7 @@ ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer.ytc-first-earlie
   content: "更早";
   display: block;
   padding: 16px 4px 0;
-  font: 500 12px/1 "Roboto", "PingFang TC", "Noto Sans TC", sans-serif;
-  letter-spacing: 3px;
+  font: 600 13px/1 "Roboto", "PingFang TC", "Noto Sans TC", sans-serif;
   color: #606060;
 }
 html[dark] ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer.ytc-first-earlier::before {
@@ -265,8 +264,7 @@ html[dark] ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer.ytc-f
 }
 /* 英文介面（common/i18n.js 在 <html> 上標 data-doomnt-lang） */
 html[data-doomnt-lang="en"] ytd-browse[page-subtype="subscriptions"] ytd-rich-item-renderer.ytc-first-earlier::before {
-  content: "EARLIER";
-  letter-spacing: 1.5px;
+  content: "Earlier";
 }
 
 /* 訂閱內容：「最相關」區塊（第 1 頁中間那排精選影片）整個不顯示 */

@@ -16,6 +16,8 @@ var doomntI18n = (() => {
       // 彈出視窗
       language: "語言",
       options: "選項",
+      settings: "設定",
+      comingSoon: "即將推出",
       fourchanTitle: "4chan 過濾",
       fourchanDesc: "藏起成人看板和 Misc（/pol/ 除外），熱門討論串只顯示 SFW",
       igSuggestTitle: "藏起 Instagram 推薦帳號",
@@ -47,6 +49,8 @@ var doomntI18n = (() => {
       posts: "Posts",
       language: "Language",
       options: "Options",
+      settings: "Settings",
+      comingSoon: "Coming soon",
       fourchanTitle: "4chan filter",
       fourchanDesc: "Hides adult boards and Misc (except /pol/); popular threads show SFW only",
       igSuggestTitle: "Hide Instagram suggestions",

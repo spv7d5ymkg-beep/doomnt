@@ -28,8 +28,8 @@ header {
   letter-spacing: -0.3px;
 }
 .label {
-  font-size: 11px;
-  letter-spacing: 3px;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--muted);
   margin-bottom: 8px;
 }
@@ -95,7 +95,7 @@ input[role="switch"]:focus-visible {
 /* 語言選單 */
 .lang-row {
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-top: 16px;
   cursor: default;
 }
 select {
@@ -207,4 +207,65 @@ select:focus-visible {
 }
 .stat-week .day.today {
   color: var(--text);
+}
+
+/* 設定：每個網站一區，預設收合，點網站名稱展開 */
+.sites {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.site-group + .site-group {
+  border-top: 1px solid var(--line);
+}
+.site-group summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+.site-group summary::-webkit-details-marker {
+  display: none;
+}
+.site-group summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+.site-group[open] summary::after {
+  transform: rotate(45deg);
+}
+.site-group summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.group-body {
+  padding: 0 14px 6px;
+}
+/* 區塊裡的開關：不再各自一張卡片，用細線隔開 */
+.group-body .row {
+  padding: 10px 0;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+}
+.group-body .row .title {
+  font-weight: 500;
+}
+.soon {
+  margin: 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--muted);
 }
