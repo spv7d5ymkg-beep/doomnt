@@ -45,6 +45,10 @@ A Chrome extension that stops endless scrolling on YouTube and Instagram, and bl
 - Time only counts while the tab is in front and the window is focused; coming back after more than 30 seconds counts as a new open
 - The data stays on your computer, is never sent anywhere, and only the last 8 days are kept
 
+## Greyscale
+
+- Click the Doomn't icon in the toolbar and expand YouTube, Instagram or 4chan under Settings to turn on Greyscale for that site: the whole site turns black and white, including videos and images (off by default)
+
 ## Self-check
 
 - Sites change, and features can silently stop working. On every page Doomn't checks that what it relies on is still there and what it hides is still hidden

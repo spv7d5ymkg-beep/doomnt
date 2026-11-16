@@ -1,0 +1,9 @@
+/* 灰階模式（common/gray.js 在開關開啟時加上 html.doomnt-gray）：整個網站變成黑白，包含影片和圖片。
+   濾鏡放在 <html> 上：放在根元素時不會影響 position: fixed 的元素（放在其他元素上會）。
+   全螢幕的元素（影片播放器）畫在最上層，另外再套一次，確定全螢幕時也是黑白 */
+html.doomnt-gray {
+  filter: grayscale(1) !important;
+}
+html.doomnt-gray :fullscreen {
+  filter: grayscale(1) !important;
+}

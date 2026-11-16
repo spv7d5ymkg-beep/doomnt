@@ -10,12 +10,16 @@ box.addEventListener("change", () => {
 });
 
 // Instagram：首頁右側的推薦帳號、右下角的訊息按鈕（預設都藏起來）
-for (const [id, key] of [
-  ["igSuggest", "igSuggestHidden"],
-  ["igDm", "igDmHidden"],
+// 灰階模式：每個網站各一個開關（預設關閉，見 common/gray.js）
+for (const [id, key, def] of [
+  ["igSuggest", "igSuggestHidden", true],
+  ["igDm", "igDmHidden", true],
+  ["grayYoutube", "grayYoutube", false],
+  ["grayInstagram", "grayInstagram", false],
+  ["grayFourchan", "grayFourchan", false],
 ]) {
   const el = document.getElementById(id);
-  chrome.storage.local.get({ [key]: true }, (r) => {
+  chrome.storage.local.get({ [key]: def }, (r) => {
     el.checked = r[key];
   });
   el.addEventListener("change", () => {

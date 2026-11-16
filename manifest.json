@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "2.41.0",
+  "version": "2.42.0",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
   "permissions": [
@@ -28,9 +28,11 @@
         "https://www.youtube.com/*"
       ],
       "css": [
-        "youtube/style.css"
+        "youtube/style.css",
+        "common/gray.css"
       ],
       "js": [
+        "common/gray.js",
         "common/i18n.js",
         "youtube/content.js",
         "common/usage.js",
@@ -43,9 +45,11 @@
         "https://www.instagram.com/*"
       ],
       "css": [
-        "instagram/style.css"
+        "instagram/style.css",
+        "common/gray.css"
       ],
       "js": [
+        "common/gray.js",
         "common/i18n.js",
         "instagram/content.js",
         "common/usage.js",
@@ -60,9 +64,11 @@
         "https://*.4channel.org/*"
       ],
       "css": [
-        "fourchan/style.css"
+        "fourchan/style.css",
+        "common/gray.css"
       ],
       "js": [
+        "common/gray.js",
         "fourchan/content.js",
         "common/usage.js",
         "common/health.js"
