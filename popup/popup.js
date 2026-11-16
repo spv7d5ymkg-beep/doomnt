@@ -129,6 +129,49 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 doomntI18n.onChange(renderStats);
 
+// ---------- 自我檢查的結果（資料由 common/health.js 記錄） ----------
+// 連續失敗 HEALTH_FAILS 次以上才提醒；超過 HEALTH_MAX_AGE 沒再檢查到的項目不算（那個功能可能已經拿掉了）
+const HEALTH_FAILS = 2;
+const HEALTH_MAX_AGE = 14 * 24 * 3600 * 1000;
+let health = {};
+function renderHealth() {
+  const t = doomntI18n.t;
+  for (const box of document.querySelectorAll("[data-health]")) {
+    const id = box.dataset.health;
+    const dot = document.querySelector('[data-health-dot="' + id + '"]');
+    const entries = Object.entries(health[id] || {}).filter(([, v]) => v && Date.now() - v.at < HEALTH_MAX_AGE);
+    const bad = entries.filter(([, v]) => !v.ok && v.fails >= HEALTH_FAILS).map(([k]) => k);
+    const state = !entries.length ? "" : bad.length ? "warn" : "ok";
+    dot.className = "health-dot" + (state ? " " + state : "");
+    box.className = "health" + (state ? " " + state : "");
+    box.textContent = !entries.length
+      ? t("healthNone")
+      : bad.length
+        ? t("healthWarn", { n: bad.length })
+        : t("healthOk", { n: entries.length });
+    dot.title = box.textContent;
+    if (bad.length) {
+      const ul = document.createElement("ul");
+      for (const k of bad) {
+        const li = document.createElement("li");
+        li.textContent = t(k);
+        ul.appendChild(li);
+      }
+      box.appendChild(ul);
+    }
+  }
+}
+chrome.storage.local.get({ health: null }, (r) => {
+  health = r.health || {};
+  renderHealth();
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local" || !changes.health) return;
+  health = changes.health.newValue || {};
+  renderHealth();
+});
+doomntI18n.onChange(renderHealth);
+
 applyLang(doomntI18n.lang);
 doomntI18n.onChange(applyLang);
 select.addEventListener("change", () => {

@@ -269,3 +269,35 @@ select:focus-visible {
   font-size: 13px;
   color: var(--muted);
 }
+
+/* 自我檢查的結果（common/health.js）：網站名稱旁的小圓點，展開後第一列是說明 */
+.site-group summary .title {
+  margin-right: auto;
+}
+.health-dot {
+  width: 8px;
+  height: 8px;
+  margin-right: 12px;
+  border-radius: 50%;
+  background: #4a4a4a; /* 還沒有紀錄 */
+}
+.health-dot.ok {
+  background: #5fc98a;
+}
+.health-dot.warn {
+  background: var(--accent);
+}
+.health {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted);
+}
+.health.warn {
+  color: var(--text);
+}
+.health ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--accent);
+}

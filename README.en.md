@@ -45,6 +45,12 @@ A Chrome extension that stops endless scrolling on YouTube and Instagram, and bl
 - Time only counts while the tab is in front and the window is focused; coming back after more than 30 seconds counts as a new open
 - The data stays on your computer, is never sent anywhere, and only the last 8 days are kept
 
+## Self-check
+
+- Sites change, and features can silently stop working. On every page Doomn't checks that what it relies on is still there and what it hides is still hidden
+- Click the Doomn't icon in the toolbar: each site under Settings has a dot, green when everything works and orange when a feature may be broken; expand the site to see which
+- A check must fail twice in a row before it is flagged; the results stay on your computer
+
 ## Language
 
 - The interface is available in English and Traditional Chinese: click the Doomn't icon in the toolbar and pick one from the "Language" menu; open tabs switch right away
