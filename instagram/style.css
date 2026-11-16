@@ -434,3 +434,8 @@ html.igc-stories-only #igc-stories {
 [role="dialog"] ._aaqg {
   display: none !important;
 }
+
+/* 個人頁的「Reels」分頁：點了只會被導回首頁（content.js 的 REELS_BLOCK_RE），乾脆不顯示 */
+[role="tablist"] a[href$="/reels/"] {
+  display: none !important;
+}

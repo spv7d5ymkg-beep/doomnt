@@ -613,7 +613,8 @@
     return right ? sidebarMin : 0;
   }
   function placeGrid(grid) {
-    grid.style.left = measureSidebar() + "px";
+    const left = measureSidebar() + "px";
+    if (grid.style.left !== left) grid.style.left = left;
   }
 
   // ---------- 首頁右側的推薦帳號（連同上面你自己的帳號） ----------
@@ -1180,7 +1181,7 @@
     }
     const tray = findTray();
     if (!tray) return;
-    tray.setAttribute("data-igc-tray", "");
+    if (!tray.hasAttribute("data-igc-tray")) tray.setAttribute("data-igc-tray", "");
     if (tray !== storyTray) {
       // 新的一列（第一次載入，或 Instagram 重新渲染）：重新掃描。
       // 已經顯示過的話保留原本的頭像，掃完才更新，不會整個消失再出現

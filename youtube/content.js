@@ -262,8 +262,8 @@
     // 兩個標記分開更新：載入更多影片後線可能往下移一支，原本線下的那支變成線上那支，
     // 它舊的「線下」標記一定要拿掉，否則會出現兩條紅線
     for (const el of contents.querySelectorAll(":scope > .ytc-last-today, :scope > .ytc-first-earlier")) {
-      if (el !== lastToday) el.classList.remove("ytc-last-today");
-      if (el !== firstEarlier) el.classList.remove("ytc-first-earlier");
+      if (el !== lastToday) setClass(el, "ytc-last-today", false);
+      if (el !== firstEarlier) setClass(el, "ytc-first-earlier", false);
     }
     if (firstEarlier) {
       setClass(lastToday, "ytc-last-today", true);
@@ -290,12 +290,16 @@
     }
     if (contents.nextElementSibling !== pager) contents.after(pager);
     const lastPage = !more && rank <= end; // 沒有「載入更多」了：訂閱內容已經到底
-    pager.hidden = !pageFull && !lastPage; // 這一頁還在載入時先不顯示
+    // 屬性都是「有變才寫」：這個函式每次檢查都會跑
+    const setProp = (el, k, v) => {
+      if (el[k] !== v) el[k] = v;
+    };
+    setProp(pager, "hidden", !pageFull && !lastPage); // 這一頁還在載入時先不顯示
     const [prev, label, next] = pager.children;
-    prev.disabled = subsPage === 0;
+    setProp(prev, "disabled", subsPage === 0);
     setText(prev, t("prev"));
     setText(label, t("page", { n: subsPage + 1 }));
-    next.disabled = !pageFull || lastPage;
+    setProp(next, "disabled", !pageFull || lastPage);
     setText(next, lastPage ? t("noMoreVideos") : t("next"));
   }
 
@@ -348,7 +352,8 @@
       // 所以記住這支影片上一次讀到的長度（換成別支影片時才更新），預覽期間照樣顯示
       const key = item.querySelector("a[href]")?.getAttribute("href") || "";
       if (/\d/.test(text) || item.dataset.ytcDurationFor !== key) {
-        if (text) {
+        // 沒變就不寫：寫 dataset 就算值一樣也會產生屬性變動，每次檢查、每支影片都寫的話整頁會很卡
+        if (text && (item.dataset.ytcDuration !== text || item.dataset.ytcDurationFor !== key)) {
           item.dataset.ytcDuration = text;
           item.dataset.ytcDurationFor = key;
         }
@@ -424,8 +429,16 @@
       staleSince = 0;
     }
     if (p === "/feed/subscriptions") paginateSubscriptions();
-    listify();
+    // listify 要掃過頁面上每一支影片（觀看紀錄一頁有 200 支）。頁面載入時 DOM 每一格都在變，
+    // 每一格都掃一次會把畫面拖到 15fps；改成最多每 LISTIFY_GAP 掃一次（250ms 的輪詢會補上最後一次）
+    const now = Date.now();
+    if (now - lastListify >= LISTIFY_GAP) {
+      lastListify = now;
+      listify();
+    }
   }
+  const LISTIFY_GAP = 150;
+  let lastListify = 0;
 
   // ---------- 版面改變後，讓播放器重新計算大小 ----------
   let lastFitHref = "";
