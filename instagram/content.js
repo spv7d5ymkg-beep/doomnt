@@ -947,6 +947,24 @@
     }
   }
   const USERNAME_RE = /^[A-Za-z0-9._]+$/; // Instagram 帳號只會有英數字、句點、底線
+  // 摯友的限時動態：外圈是綠色（一般的是橘→紫紅漸層，沒有任何一點是綠色為主）。
+  // 外圈上取四個點，有兩點以上「綠色明顯比紅、藍都高」就是摯友。還沒畫出來 → null
+  function ringGreen(canvas) {
+    try {
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      let drawn = false;
+      let green = 0;
+      for (const [x, y] of [[w / 2, 2], [2, w / 2], [w / 2, w - 3], [w - 3, w / 2]]) {
+        const d = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+        if (d[3] > 0) drawn = true;
+        if (d[1] > d[0] + 40 && d[1] > d[2] + 40) green++;
+      }
+      return drawn ? green >= 2 : null;
+    } catch {
+      return null;
+    }
+  }
   function readTray(tray, sc) {
     const base = sc.getBoundingClientRect().left - sc.scrollLeft;
     for (const li of tray.querySelectorAll("li")) {
@@ -958,10 +976,12 @@
       const canvas = li.querySelector("canvas");
       const old = stories.get(name);
       const seen = canvas ? ringSeen(canvas) : null;
+      const green = canvas ? ringGreen(canvas) : null;
       stories.set(name, {
         name,
         img: (img && img.src) || (old && old.img) || "",
         seen: seen === null ? (old ? old.seen : false) : seen,
+        cf: green === null ? (old ? old.cf : false) : green, // 摯友
         x: Math.round(li.getBoundingClientRect().left - base),
       });
     }
@@ -1104,7 +1124,7 @@
     let html = "";
     for (const s of list) {
       html +=
-        '<button type="button" class="igc-story' + (s.seen ? " igc-story-seen" : "") + '" data-name="' + esc(s.name) + '">' +
+        '<button type="button" class="igc-story' + (s.seen ? " igc-story-seen" : "") + (s.cf ? " igc-story-cf" : "") + '" data-name="' + esc(s.name) + '">' +
         '<span class="igc-story-ring">' + (s.img ? '<img src="' + esc(s.img) + '" alt="" draggable="false">' : "") + "</span>" +
         '<span class="igc-story-name">' + esc(s.name) + "</span></button>";
     }

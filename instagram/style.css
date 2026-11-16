@@ -417,6 +417,10 @@ html.igc-stories-only #igc-stories {
 .igc-story-seen {
   opacity: 0.45;
 }
+/* 摯友的限時動態：綠色外圈（和 Instagram 一樣） */
+.igc-story-cf .igc-story-ring {
+  background: #1cd14f;
+}
 .igc-story-seen .igc-story-ring {
   background: rgba(128, 128, 128, 0.45);
 }
