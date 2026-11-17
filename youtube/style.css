@@ -645,6 +645,18 @@ ytd-video-renderer #channel-info {
 ytd-video-renderer #expandable-metadata {
   display: none !important;
 }
+/* 新版搜尋結果（yt-lockup-view-model，2026-11 起）：一樣用分隔線隔開；
+   章節列表和 AI「摘要」的大框（expandable-metadata-view-model）不顯示，和舊版一樣 */
+ytd-search ytd-item-section-renderer #contents > yt-lockup-view-model .ytLockupViewModelHost {
+  padding: 14px 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+html[dark] ytd-search ytd-item-section-renderer #contents > yt-lockup-view-model .ytLockupViewModelHost {
+  border-bottom-color: rgba(255, 255, 255, 0.15);
+}
+yt-lockup-view-model lockup-attachments-view-model:has(yt-expandable-metadata-view-model) {
+  display: none !important;
+}
 
 /* 搜尋結果的影片說明：最多兩行 */
 ytd-video-renderer .metadata-snippet-text {
@@ -680,6 +692,10 @@ ytc-duration::before {
 }
 html[dark] #byline-container > ytc-duration {
   color: var(--yt-spec-text-secondary, #aaa);
+}
+/* 字級寫在每個文字欄位上，不在整列上（搜尋結果的整列是 10px）：長度跟著用 12px */
+.ytContentMetadataViewModelMetadataRow > ytc-duration {
+  font-size: 12px;
 }
 .ytContentMetadataViewModelMediumText ytc-duration {
   font-size: 14px;

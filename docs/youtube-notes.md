@@ -27,6 +27,12 @@
 - 新版影片項目是 `yt-lockup-view-model`（class 都是 `ytXxxViewModel…`），舊版是 `ytd-video-renderer`（搜尋）、
   `ytd-playlist-video-renderer`、`ytd-grid-video-renderer`。兩種要同時支援。
 - 頭像 `.ytLockupMetadataViewModelAvatar` 預設 `display: none`，藏著時圖片不會載入。
+- 搜尋結果（2026-11 起）也改成 `yt-lockup-view-model`，直接放在 `ytd-item-section-renderer #contents` 底下，
+  文字列的順序和訂閱內容不同：①頻道（`yt-avatar-stack-view-model`，自帶頭像）・觀看次數・時間 ②空白
+  ③影片說明 ④章節／AI 摘要框（`lockup-attachments-view-model > yt-expandable-metadata-view-model`，有展開按鈕）
+  ⑤「4K」「字幕」標籤。所以「最後一列」不是觀看次數那列（要找有分隔符號的列），
+  「第一個文字欄位」也不是頻道名稱。字級寫在各文字欄位上，整列本身是 10px。
+  Shorts 區塊是 `grid-shelf-view-model`（已經被藏）。
 - 訂閱內容：`ytd-rich-grid-renderer > #contents` 底下是 `ytd-rich-item-renderer`（影片）、
   `ytd-rich-section-renderer`（區塊）、`ytd-continuation-item-renderer`（載入更多；藏起來就不會再載入）。
 - 觀看紀錄一頁可能有 150～200 支影片：每次檢查都會掃過全部，任何「每支影片寫一次」的動作都很貴。

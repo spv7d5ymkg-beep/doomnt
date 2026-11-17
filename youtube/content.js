@@ -322,6 +322,9 @@
     const rows = [...item.querySelectorAll(".ytContentMetadataViewModelMetadataRow")].filter(
       (r) => !r.querySelector('a[href^="/playlist"], .ytContentMetadataViewModelBadge')
     );
+    // 搜尋結果的觀看次數那一列後面還有影片說明、章節兩列：找最後一個有分隔符號（「・」）的列
+    const withDelim = rows.filter((r) => r.querySelector(":scope > .ytContentMetadataViewModelDelimiter"));
+    if (withDelim.length) return withDelim[withDelim.length - 1];
     return rows[rows.length - 1];
   }
 
@@ -388,9 +391,11 @@
     for (const lockup of document.querySelectorAll("yt-lockup-view-model")) {
       const avatar = lockup.querySelector(".ytLockupMetadataViewModelAvatar");
       if (!avatar || lockup.querySelector("yt-collection-thumbnail-view-model")) continue;
-      const name = lockup.querySelector(
-        ".ytContentMetadataViewModelMetadataRow > .ytContentMetadataViewModelMetadataText:first-child:not([aria-label])"
-      );
+      // 只看第一列：搜尋結果的頻道名稱自帶頭像（yt-avatar-stack-view-model），
+      // 第一個文字欄位是後面那列影片說明，不能把頭像搬過去
+      const name = lockup
+        .querySelector(".ytContentMetadataViewModelMetadataRow")
+        ?.querySelector(":scope > .ytContentMetadataViewModelMetadataText:first-child:not([aria-label])");
       if (!name) continue;
       for (const old of name.querySelectorAll(":scope > .ytc-avatar")) if (old !== avatar) old.remove();
       if (avatar.parentElement !== name) {
@@ -400,7 +405,8 @@
     }
     // 首播的「通知我」等動作按鈕：原本另起一列、拉滿整列寬，搬到文字列最後（「即將直播」旁邊）
     for (const actions of document.querySelectorAll("yt-lockup-view-model lockup-attachments-view-model")) {
-      if (!actions.querySelector("button")) continue;
+      // 搜尋結果的章節／摘要框也有按鈕（展開），但它是 style.css 要藏的，不是動作按鈕
+      if (!actions.querySelector("button") || actions.querySelector("yt-expandable-metadata-view-model")) continue;
       const row = metaRow(actions.closest("yt-lockup-view-model"));
       if (row && actions.parentElement !== row) row.append(actions);
     }
